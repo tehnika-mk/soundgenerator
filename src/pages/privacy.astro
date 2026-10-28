@@ -1,0 +1,219 @@
+---
+import Base from '../layouts/Base.astro';
+import Panel from '../components/Panel.astro';
+import { TOOLS } from '../data/tools';
+
+const tool = TOOLS.find((t) => t.href === '/privacy')!;
+
+/** Rendered at build time, so the date never goes stale. */
+const lastUpdated = new Date().toISOString().slice(0, 10);
+---
+
+<Base title={tool.title} description={tool.meta} tool={tool} keywords={tool.keywords}>
+  <!-- ============================ Hero ============================ -->
+  <div class="hero">
+    <div class="hero__text">
+      <p class="label label--accent">Legal · Privacy</p>
+      <h1>Privacy Policy</h1>
+      <p class="hero__lead">
+        Every tone, sweep and recording is generated in your browser, and no audio you play, record or open ever
+        leaves your device. This page explains the one exception to a site with no accounts, no advertising and no
+        tracking of you as a person: aggregate page-view statistics from Google Analytics.
+      </p>
+    </div>
+    <div class="hero__aside">
+      <div class="notice notice--info">
+        <span class="notice__icon" aria-hidden="true">i</span>
+        <p class="notice__body">
+          Last updated: <span class="mono">{lastUpdated}</span>. This page is short on purpose. There is little to
+          disclose.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <Panel eyebrow="Privacy" title="The short version">
+    <div class="prose-tech">
+      <p>
+        Nothing is uploaded. Every tone, sweep, noise signal and click is synthesised locally by the Web Audio API in
+        your browser. When you use the <a href="/voice-recorder">voice recorder</a>, your microphone audio is captured
+        and processed in the browser only and is never transmitted. When you use the
+        <a href="/pitch-shifter">pitch shifter</a> or <a href="/time-stretcher">time stretcher</a>, the audio file you
+        open is read and processed in the browser only and is never transmitted. There is no server that could receive
+        any of it.
+      </p>
+    </div>
+  </Panel>
+
+  <Panel eyebrow="Detail" title="What is and is not collected">
+    <div class="prose-tech">
+      <h2>Accounts, advertising and tracking</h2>
+      <ul>
+        <li><strong>No accounts.</strong> There is nothing to register, log in to, or pay for.</li>
+        <li><strong>No cookies of our own.</strong> The site sets no first-party cookies.</li>
+        <li><strong>No advertising.</strong> No ads, no sponsorship, no advertising code.</li>
+        <li><strong>No behavioural profiling.</strong> No pixel, no fingerprinting script, no cross-site profile of you.</li>
+        <li>
+          <strong>Page-view statistics.</strong> Google Analytics measures which pages are visited, in aggregate. It is
+          the only third-party script on the site, and the detail is in the next section.
+        </li>
+      </ul>
+
+      <h2>Google Analytics</h2>
+      <p>
+        The site loads Google Analytics 4 (measurement ID <code>G-FK8YJ3XSX7</code>) so that the people who build and
+        pay for it can see which tools are used and which pages are worth improving. It collects standard aggregate
+        data: the page you viewed, the referring page, an approximate location derived from your IP address, and your
+        device, browser and screen information. It does not receive anything you type, play or record, and it cannot
+        see your audio.
+      </p>
+      <ul>
+        <li>
+          <strong>Cookies.</strong> Google sets first-party cookies such as <code>_ga</code> and
+          <code>_ga_FK8YJ3XSX7</code> to distinguish one visit from another. They contain a randomly generated
+          identifier, not your name.
+        </li>
+        <li>
+          <strong>IP addresses.</strong> IP anonymisation is enabled. Google states that it does not log or store the
+          full IP address for this property.
+        </li>
+        <li>
+          <strong>Do Not Track and Global Privacy Control.</strong> If your browser sends either signal, the analytics
+          script is not loaded at all and no request is made to Google.
+        </li>
+        <li>
+          <strong>Where the data goes.</strong> Google Ireland Limited and Google LLC process it as an independent
+          controller. See Google's own
+          <a href="https://policies.google.com/privacy" rel="noopener">privacy policy</a> and
+          <a href="https://policies.google.com/technologies/partner-sites" rel="noopener">how Google uses data from sites</a>.
+        </li>
+        <li>
+          <strong>Opting out.</strong> Block third-party scripts or cookies for this site in your browser, use a
+          content blocker, or install Google's
+          <a href="https://tools.google.com/dlpage/gaoptout" rel="noopener">Analytics opt-out add-on</a>. The site works
+          normally with analytics blocked; nothing here depends on it.
+        </li>
+        <li>
+          <strong>Local development is excluded.</strong> The script is only added to production builds, so the dev
+          server never includes it. Serving a production build locally (for example with <code>npm run preview</code>,
+          or a browser preview extension) does send hits, so block it if that matters to you.
+        </li>
+      </ul>
+
+      <h2>Definitely not collected</h2>
+      <ul>
+        <li><strong>No audio.</strong> Nothing you play, speak, record or open as a file is transmitted anywhere.</li>
+        <li><strong>No text you type.</strong> The voice generator's text, frequency entries and settings stay local.</li>
+        <li><strong>No microphone data.</strong> The recorder's stream is processed in a local audio graph and closed when you stop.</li>
+      </ul>
+
+      <h2>Nothing is uploaded</h2>
+      <p>
+        All audio is generated and processed on your device. This applies to the microphone input on the
+        <a href="/voice-recorder">voice recorder</a> and to any file you open in the
+        <a href="/pitch-shifter">pitch shifter</a> or <a href="/time-stretcher">time stretcher</a>. Processing happens
+        in a local audio graph, and the microphone stream is closed when you stop recording. No audio data is sent
+        anywhere.
+      </p>
+
+      <h2>What is stored locally on your device</h2>
+      <p>
+        The site keeps a small amount of information in your browser's <code>localStorage</code> so that settings
+        survive a reload. It stays on your device and is not transmitted.
+      </p>
+      <table class="table-tech">
+        <thead>
+          <tr><th>Key</th><th>What it holds</th><th>Why</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="mono">sg.master.v1</td>
+            <td>The master volume slider position, a number from 0 to 100.</td>
+            <td>So the site level is the same when you come back.</td>
+          </tr>
+          <tr>
+            <td class="mono">sg.hearing.v1</td>
+            <td>Your results from the <a href="/hearing-test">hearing test</a>, if you choose to save them.</td>
+            <td>So the log survives a reload. It is only written if you use that page.</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>
+        Everything of ours is keyed under <code>sg.</code> To clear it, use your browser's settings to delete site data
+        or storage for <code>soundgenerator.app</code>. Clearing it resets the volume and removes any saved hearing-test
+        log; the site works normally afterwards. Clearing site data also removes the Google Analytics cookies described
+        above.
+      </p>
+
+      <h2>Third parties</h2>
+      <p>
+        Google Analytics is the only third-party script, font or resource the pages load. Everything else is served
+        from this domain. Three things outside the site may still apply.
+      </p>
+      <ul>
+        <li><strong>Google Analytics.</strong> Covered in full in the section above, including how to block or opt out of it.</li>
+        <li><strong>Hosting server logs.</strong> The static files are served by a hosting provider, which may keep
+          ordinary server logs such as your IP address and the time of the request, as any web host does. Those logs
+          are outside this site's control.</li>
+        <li><strong>Speech synthesis voices.</strong> The <a href="/voice-generator">voice generator</a> uses the
+          speech voices installed by your browser or operating system. How those voices are provided, which may include
+          remote synthesis on some platforms, is governed by your browser and OS vendor, not by this site.</li>
+      </ul>
+
+      <h2>Your rights</h2>
+      <p>
+        There is no account and no profile of you to request or delete. For the aggregate statistics described above,
+        you can object by blocking the analytics script or by sending the Do Not Track or Global Privacy Control
+        signal, both of which stop it loading. For questions or requests, write to the address in the contact section.
+      </p>
+
+      <h2>Children</h2>
+      <p>
+        The site has no accounts and collects no personal information about individuals, so it can be used by anyone.
+        Where a young user operates the generators, adult supervision is sensible for the same reason it is for any
+        audio equipment: loud tones can damage hearing.
+      </p>
+
+      <h2>Changes to this policy</h2>
+      <p>
+        If this policy changes, the revised text will appear on this page with a new date at the top. The date is
+        generated when the site is built, so it always reflects the published version.
+      </p>
+
+      <h2>Contact</h2>
+      <p>
+        Write to <a href="mailto:hello@tehnika.mk">hello@tehnika.mk</a> with any privacy question. The
+        address is also listed in plain text as <code>hello@tehnika.mk</code>.
+      </p>
+      <p>
+        See the <a href="/about">about page</a> for how the tools work, and the
+        <a href="/theory">acoustic theory</a> page for the physics behind them.
+      </p>
+    </div>
+  </Panel>
+</Base>
+
+<style>
+  .hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(260px, 1fr);
+    gap: 20px;
+    align-items: start;
+    margin-bottom: 18px;
+  }
+  @media (max-width: 900px) {
+    .hero { grid-template-columns: minmax(0, 1fr); }
+  }
+  .hero h1 {
+    font-size: clamp(1.6rem, 3.2vw, 2.1rem);
+    margin: 6px 0 8px;
+  }
+  .hero__lead {
+    color: var(--color-ink-2);
+    max-width: 68ch;
+    margin: 0;
+    font-size: 14.5px;
+  }
+  .notice__body { margin: 0; }
+  .prose-tech table { margin: 0 0 1rem; }
+</style>

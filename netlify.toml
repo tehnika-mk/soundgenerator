@@ -1,0 +1,74 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+[[headers]]
+  for = "/_astro/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/worklets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), geolocation=(), payment=(), microphone=(self)"
+    X-Frame-Options = "SAMEORIGIN"
+
+[[redirects]]
+  from = "/tone-generator"
+  to = "/"
+  status = 301
+
+[[redirects]]
+  from = "/frequency-sweep-generator"
+  to = "/sweep-generator"
+  status = 301
+
+[[redirects]]
+  from = "/noise"
+  to = "/noise-generator"
+  status = 301
+
+[[redirects]]
+  from = "/binauralbeats"
+  to = "/binaural-beats"
+  status = 301
+
+[[redirects]]
+  from = "/tuning"
+  to = "/instrument-tuning"
+  status = 301
+
+[[redirects]]
+  from = "/hearingtest"
+  to = "/hearing-test"
+  status = 301
+
+[[redirects]]
+  from = "/subwoofer"
+  to = "/subwoofer-test"
+  status = 301
+
+[[redirects]]
+  from = "/432Hz"
+  to = "/432hz"
+  status = 301
+
+[[redirects]]
+  from = "/privacy-policy"
+  to = "/privacy"
+  status = 301

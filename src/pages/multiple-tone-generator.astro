@@ -1,0 +1,502 @@
+---
+import Base from '../layouts/Base.astro';
+import Panel from '../components/Panel.astro';
+import { TOOLS } from '../data/tools';
+
+const tool = TOOLS.find((t) => t.href === '/multiple-tone-generator')!;
+
+// Server-rendered starting voices. The page script clones the first row to add
+// more, so this markup is also the prototype for "Add voice".
+const initialVoices = [
+  { freq: '440', wave: 'sine', level: 60, pan: 0 },
+  { freq: '660', wave: 'sine', level: 60, pan: 0 },
+  { freq: '880', wave: 'sine', level: 60, pan: 0 },
+];
+const WAVES = [
+  ['sine', 'Sine'],
+  ['square', 'Square'],
+  ['sawtooth', 'Sawtooth'],
+  ['triangle', 'Triangle'],
+] as const;
+
+const related = TOOLS.filter((t) =>
+  ['/sweep-generator', '/binaural-beats', '/noise-generator', '/instrument-tuning', '/', '/subwoofer-test'].includes(t.href),
+);
+
+const intervals = [
+  ['Unison', '1 : 1', '0', 'Two voices at the same pitch. Perfectly still, no beating.'],
+  ['Octave', '2 : 1', '1200', 'The same note higher. The simplest, most consonant interval.'],
+  ['Perfect fifth', '3 : 2', '702', 'Root and fifth. The strongest consonant interval after the octave.'],
+  ['Perfect fourth', '4 : 3', '498', 'A fifth inverted. Stable, slightly more open than a fifth.'],
+  ['Major third', '5 : 4', '386', 'Bright, major quality. A triad’s middle note.'],
+  ['Minor third', '6 : 5', '316', 'Dark, minor quality. A triad’s middle note.'],
+  ['Major sixth', '5 : 3', '884', 'Consonant and warm.'],
+  ['Minor seventh', '16 : 9', '996', 'Tense, bluesy.'],
+  ['Tritone', '45 : 32', '590', 'Unstable. Half an octave; wants to resolve.'],
+];
+
+const faqs = [
+  {
+    q: 'How many tones can I run at once?',
+    a: 'Up to eight independent voices, each with its own frequency, waveform, level and stereo pan. All eight route through one master bus and a safety limiter, so the total output stays inside the headroom of the mix instead of clipping. Two or three voices is usually the most that is useful for interval and beating work; more is for checking how a chord sums.',
+  },
+  {
+    q: 'What is the beating I hear with two close tones?',
+    a: 'Two sine tones a few Hz apart drift in and out of phase. When the crests line up the sound is loud, when they oppose it cancels - the level rises and falls at the difference frequency. 440 Hz and 441 Hz beat once a second, heard as a slow throb; 440 and 444 Hz beat four times a second. Beat rate equals the frequency difference, so it is a precise way to tune two oscillators against each other.',
+  },
+  {
+    q: 'Is a level of 100 % per voice too loud?',
+    a: 'The level slider sets a voice’s share of the mix, not absolute loudness - the header volume still controls how loud anything is. Each voice is capped at 0.6 of full scale so eight of them sum without the limiter working hard. If the meter on your interface or interface software shows clipping, lower the header volume or drop the individual levels.',
+  },
+  {
+    q: 'Can I share a chord or stack with someone else?',
+    a: 'Yes. Every voice - its frequency, waveform, level, pan and on/off state - is encoded into the URL. Press Copy link to get it, and anyone opening that address sees the same stack restored and ready to play. Nothing is uploaded; the whole configuration lives in the address itself.',
+  },
+];
+---
+
+<Base title={tool.title} description={tool.meta} tool={tool} keywords={tool.keywords}>
+  <!-- ============================ Hero ============================ -->
+  <div class="hero">
+    <div class="hero__text">
+      <p class="label label--accent">Generator · up to 8 voices</p>
+      <h1>{tool.title}</h1>
+      <p class="hero__lead">
+        Run up to eight independent oscillators at the same time, each with its own frequency, waveform, level and
+        stereo position. Build chords, octave stacks and harmonic series, or detune a pair by a few hertz to hear the
+        beat. Every voice is a live Web Audio oscillator - nothing is pre-recorded and nothing leaves your browser.
+      </p>
+    </div>
+    <div class="hero__aside">
+      <div class="notice">
+        <span class="notice__icon" aria-hidden="true">!</span>
+        <p class="notice__body">
+          Eight simultaneous tones are noticeably louder than one. Start with the header level low, keep individual
+          levels modest and add voices one at a time. The limiter stops digital clipping; it does not make loud
+          playback safe.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================= Generator panel ======================= -->
+  <section class="panel" id="multi" data-tone-generator aria-labelledby="multi-heading">
+    <header class="panel__head">
+      <div class="flex items-center gap-2">
+        <span class="label" id="multi-heading">Voices</span>
+        <span class="badge">Web Audio</span>
+        <span class="badge badge--signal" data-voice="count">3 of 3 voices enabled</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <button class="btn btn--ghost btn--sm" type="button" data-voice="share">Copy link</button>
+      </div>
+    </header>
+
+    <div class="panel__body multi__body">
+      <!-- Voice list -->
+      <div class="stack">
+        <div class="voice-list" data-voice-list role="group" aria-labelledby="multi-heading">
+          {
+            initialVoices.map((v, i) => (
+              <div class="voice-row" data-voice-row>
+                <div class="voice-row__main">
+                  <button
+                    class="voice-power"
+                    type="button"
+                    data-voice="toggle"
+                    aria-pressed="true"
+                    aria-label={`Voice ${i + 1} enabled. Click to mute.`}
+                  >
+                    <span class="led" data-voice="led" data-on="true" />
+                  </button>
+                  <span class="voice-index mono" data-voice="index">{i + 1}</span>
+                  <div class="voice-freq">
+                    <label class="voice-freq__field">
+                      <span class="visually-hidden">Voice {i + 1} frequency in hertz</span>
+                      <input
+                        class="input input--compact mono"
+                        data-voice="freq"
+                        type="text"
+                        inputmode="decimal"
+                        value={v.freq}
+                        autocomplete="off"
+                        spellcheck="false"
+                      />
+                    </label>
+                    <span class="voice-note mono" data-voice="note"> - </span>
+                  </div>
+                  <label class="voice-wave">
+                    <span class="visually-hidden">Voice {i + 1} waveform</span>
+                    <select class="input input--compact mono" data-voice="wave" aria-label={`Voice ${i + 1} waveform`}>
+                      {WAVES.map(([value, label]) => (
+                        <option value={value} selected={value === v.wave}>{label}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <button class="btn btn--ghost btn--sm" type="button" data-voice="remove" aria-label={`Remove voice ${i + 1}`}>
+                    ×
+                  </button>
+                </div>
+                <div class="voice-row__sliders">
+                  <label class="voice-slider">
+                    <span class="label">Level</span>
+                    <input
+                      class="slider"
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="1"
+                      value={v.level}
+                      data-voice="level"
+                      aria-label={`Voice ${i + 1} level, percent`}
+                    />
+                    <span class="mono voice-slider__val" data-voice="level-read">{v.level}</span>
+                  </label>
+                  <label class="voice-slider">
+                    <span class="label">Pan · L100 · C · R100</span>
+                    <input
+                      class="slider"
+                      type="range"
+                      min="-100"
+                      max="100"
+                      step="1"
+                      value={v.pan}
+                      data-voice="pan"
+                      aria-label={`Voice ${i + 1} stereo pan`}
+                    />
+                    <span class="mono voice-slider__val" data-voice="pan-read">C</span>
+                  </label>
+                </div>
+              </div>
+            ))
+          }
+        </div>
+
+        <div class="multi__toolbar">
+          <button class="btn btn--sm" type="button" data-voice="add">+ Add voice</button>
+          <button class="btn btn--ghost btn--sm" type="button" data-voice="remove-voice">− Remove last</button>
+          <span class="multi__toolbar-note mono">1 – 8 voices</span>
+        </div>
+
+        <div class="transport">
+          <button class="btn btn--primary btn--play" type="button" data-voice="play" aria-pressed="false">
+            <span class="transport__glyph" aria-hidden="true">▶</span> Play all enabled
+          </button>
+          <button class="btn btn--stop" type="button" data-voice="stop" aria-pressed="false" disabled>
+            <span class="transport__glyph" aria-hidden="true">■</span> Stop
+          </button>
+        </div>
+
+        <p class="status mono" data-voice="status" role="status" aria-live="polite">
+          Ready. Add voices and press play.
+        </p>
+
+        <div class="multi__stats">
+          <span class="label">Playing frequencies</span>
+          <span class="mono multi__freq-list" data-voice="freq-list"> - </span>
+        </div>
+      </div>
+
+      <!-- Analysis -->
+      <div class="stack">
+        <div class="scope scope--wave">
+          <span class="scope__tag">Oscilloscope · output</span>
+          <canvas data-scope="wave" />
+        </div>
+        <div class="scope scope--spec">
+          <span class="scope__tag">Spectrum · 0 – 20 kHz</span>
+          <canvas data-scope="spectrum" data-peak="true" />
+        </div>
+
+        <div class="notice notice--info">
+          <span class="notice__icon" aria-hidden="true">i</span>
+          <p class="notice__body">
+            The spectrum shows every voice as its own peak. Two voices close together resolve into two lines; as you
+            move one toward the other the lines converge and merge into a single blurred peak.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Presets -->
+    <div class="panel__body panel__body--tight hairline presets">
+      <span class="label presets__label">Presets</span>
+      <div class="presets__grid">
+        <button class="preset" type="button" data-preset="octave">
+          <span class="preset__hz mono">440·880·1320·1760</span><span class="preset__note">octave stack</span>
+        </button>
+        <button class="preset" type="button" data-preset="major">
+          <span class="preset__hz mono">261.63·329.63·392</span><span class="preset__note">major triad</span>
+        </button>
+        <button class="preset" type="button" data-preset="minor">
+          <span class="preset__hz mono">261.63·311.13·392</span><span class="preset__note">minor triad</span>
+        </button>
+        <button class="preset" type="button" data-preset="fifth">
+          <span class="preset__hz mono">440·660</span><span class="preset__note">perfect fifth</span>
+        </button>
+        <button class="preset" type="button" data-preset="beat">
+          <span class="preset__hz mono">440·441</span><span class="preset__note">beating pair</span>
+        </button>
+        <button class="preset" type="button" data-preset="harmonic">
+          <span class="preset__hz mono">110·220·330·440</span><span class="preset__note">harmonic series</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================= Reference ========================= -->
+  <div class="two-col">
+    <Panel eyebrow="Reference" title="Beating and combination tones">
+      <p>
+        Two steady tones a few hertz apart do not sound like two clean notes - they pulse. The oscillators start in
+        phase (peak level), drift out of phase (near silence) and back, repeating at the difference of their
+        frequencies. That rate is the beat frequency: <code>f<sub>beat</sub> = |f₁ − f₂|</code>. The beating pair
+        preset (440 Hz and 441 Hz) beats exactly once a second.
+      </p>
+      <p>
+        When two tones are loud and far enough apart, the ear and the loudspeaker both generate extra “combination
+        tones” at sums and differences (<code>f₁ ± f₂</code>). A difference tone is audible even when the ear cannot
+        hear one of the originals, which is why a clean 440/880 octave can produce a faint 440 Hz reinforcement.
+      </p>
+      <p class="hint">
+        Beating is the fast, reliable way to tune one oscillator to another: set two voices an octave or a fifth
+        apart, nudge one by 1 Hz, and stop the drift.
+      </p>
+    </Panel>
+
+    <Panel eyebrow="Reference" title="Useful intervals and their ratios">
+      <table class="table-tech">
+        <thead>
+          <tr><th>Interval</th><th>Ratio</th><th>Cents</th><th>Character</th></tr>
+        </thead>
+        <tbody>
+          {
+            intervals.map(([name, ratio, cents, note]) => (
+              <tr>
+                <td class="mono">{name}</td>
+                <td class="mono">{ratio}</td>
+                <td class="mono">{cents}</td>
+                <td>{note}</td>
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+      <p class="hint">
+        Multiply a root frequency by a ratio to get the upper voice: 440 Hz × 3/2 = 660 Hz is a perfect fifth, × 5/4 =
+        550 Hz a major third. When the ratio is made of small whole numbers the two tones share more harmonic peaks,
+        and the interval sounds more consonant.
+      </p>
+    </Panel>
+  </div>
+
+  <!-- =========================== FAQ =========================== -->
+  <Panel eyebrow="FAQ" title="Questions people actually ask">
+    <div class="faq">
+      {faqs.map((faq) => (
+        <details>
+          <summary>{faq.q}</summary>
+          <p>{faq.a}</p>
+        </details>
+      ))}
+    </div>
+  </Panel>
+
+  <!-- ====================== Related tools ====================== -->
+  <Panel eyebrow="More tools" title="Related generators and tests">
+    <div class="card-grid">
+      {
+        related.map((item) => (
+          <a class="card" href={item.href}>
+            <p class="card__t">{item.title}</p>
+            <p class="card__d">{item.tagline}</p>
+          </a>
+        ))
+      }
+    </div>
+  </Panel>
+
+  <script>
+    import '../scripts/multiple-tone-generator';
+  </script>
+</Base>
+
+<style>
+  .hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(260px, 1fr);
+    gap: 20px;
+    align-items: start;
+    margin-bottom: 18px;
+  }
+  @media (max-width: 900px) {
+    .hero { grid-template-columns: minmax(0, 1fr); }
+  }
+  .hero h1 { font-size: clamp(1.6rem, 3.2vw, 2.1rem); margin: 6px 0 8px; }
+  .hero__lead { color: var(--color-ink-2); max-width: 68ch; margin: 0; font-size: 14.5px; }
+  .notice__body { margin: 0; }
+
+  .multi__body {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+    gap: 20px;
+  }
+  @media (max-width: 1000px) {
+    .multi__body { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  .stack { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+
+  .voice-list { display: flex; flex-direction: column; gap: 8px; }
+
+  .voice-row {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px;
+    background: var(--color-panel-2);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-sm);
+  }
+  .voice-row__main {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .voice-power {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    background: var(--color-void);
+    border: 1px solid var(--color-line-2);
+    border-radius: var(--radius-xs);
+    cursor: pointer;
+  }
+  .voice-power:hover { border-color: var(--color-line-3); }
+  .voice-index {
+    flex: none;
+    color: var(--color-ink-4);
+    font-size: 12px;
+    min-width: 12px;
+  }
+  .voice-freq {
+    flex: 1 1 140px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+  }
+  .voice-freq .input { width: 100%; max-width: 120px; }
+  .voice-freq__field { display: inline-flex; }
+  .voice-note {
+    flex: none;
+    min-width: 34px;
+    font-size: 12px;
+    color: var(--color-signal);
+  }
+  .voice-wave { flex: none; }
+  .voice-wave select { min-width: 96px; }
+  .input--compact { min-height: 30px; padding: 3px 8px; font-size: 12px; width: auto; }
+
+  .voice-row__sliders {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 12px;
+  }
+  @media (max-width: 560px) {
+    .voice-row__sliders { grid-template-columns: minmax(0, 1fr); }
+  }
+  .voice-slider {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+  }
+  .voice-slider .slider { width: 100%; }
+  .voice-slider__val { font-size: 11.5px; color: var(--color-ink-3); min-width: 26px; text-align: right; }
+
+  .multi__toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .multi__toolbar-note { font-size: 11px; color: var(--color-ink-4); margin-left: auto; }
+
+  .transport { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .transport__glyph { font-size: 9px; }
+
+  .status {
+    font-size: 11.5px;
+    color: var(--color-ink-3);
+    margin: 0;
+    min-height: 18px;
+  }
+  .status[data-kind='ok'] { color: var(--color-signal); }
+  .status[data-kind='error'] { color: var(--color-danger); }
+  .status[data-kind='warn'] { color: var(--color-warn); }
+
+  .multi__stats {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding-top: 4px;
+    border-top: 1px solid var(--color-line);
+  }
+  .multi__freq-list { font-size: 12.5px; color: var(--color-ink); }
+
+  .presets { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .presets__label { padding-top: 4px; }
+  .presets__grid { display: flex; flex-wrap: wrap; gap: 6px; flex: 1 1 320px; }
+  .preset {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 4px 9px;
+    background: var(--color-panel-2);
+    border: 1px solid var(--color-line);
+    border-radius: 999px;
+    color: var(--color-ink-2);
+    cursor: pointer;
+    font-size: 12px;
+  }
+  .preset:hover { border-color: var(--color-signal); color: var(--color-signal); }
+  .preset__hz { font-size: 12px; }
+  .preset__note { font-size: 10px; color: var(--color-ink-4); }
+  .preset:hover .preset__note { color: color-mix(in oklab, var(--color-signal) 70%, var(--color-ink-4)); }
+
+  .hint { margin: 7px 0 0; font-size: 11.5px; color: var(--color-ink-4); line-height: 1.7; }
+
+  .two-col {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 14px;
+    margin-top: 14px;
+  }
+  @media (max-width: 1000px) {
+    .two-col { grid-template-columns: minmax(0, 1fr); }
+  }
+  .two-col :global(.panel + .panel) { margin-top: 0; }
+
+  .faq details { border-bottom: 1px solid var(--color-line); padding: 10px 0; }
+  .faq details:first-of-type { padding-top: 0; }
+  .faq summary {
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 13.5px;
+    list-style: none;
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+  }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary::before { content: "+"; font-family: var(--font-mono); color: var(--color-signal); flex: none; }
+  .faq details[open] summary::before { content: "−"; }
+  .faq details p { margin: 8px 0 0 18px; font-size: 13px; color: var(--color-ink-2); line-height: 1.65; }
+</style>

@@ -1,0 +1,166 @@
+---
+import '../styles/global.css';
+import SiteHeader from '../components/SiteHeader.astro';
+import SiteRail from '../components/SiteRail.astro';
+import SiteFooter from '../components/SiteFooter.astro';
+import Analytics from '../components/Analytics.astro';
+import { SITE, type Tool } from '../data/tools';
+
+interface Props {
+  title: string;
+  description: string;
+  /** Tool entry this page belongs to (drives JSON-LD + breadcrumbs). */
+  tool?: Tool;
+  keywords?: string[];
+  /** Keep the page out of search indexes (dev and test pages). */
+  noindex?: boolean;
+  /** Page-specific <script> modules are declared by the page itself. */
+}
+
+const { title, description, tool, keywords = [], noindex = false } = Astro.props;
+
+const canonical = new URL(Astro.url.pathname.replace(/\/$/, '') || '/', SITE.url).toString();
+const isHome = tool?.href === '/';
+const fullTitle = isHome ? `${title} | Free Online Signal Generator` : `${title} | ${SITE.name}`;
+const image = new URL('/og.png', SITE.url).toString();
+
+const organization = {
+  '@type': 'Organization',
+  name: SITE.name,
+  url: SITE.url,
+  logo: new URL('/favicon.svg', SITE.url).toString(),
+  email: SITE.email,
+};
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'WebApplication',
+  name: fullTitle,
+  url: canonical,
+  description,
+  applicationCategory: 'MultimediaApplication',
+  applicationSubCategory: 'Audio and music tools',
+  operatingSystem: 'Any (browser-based)',
+  browserRequirements: 'Requires JavaScript and the Web Audio API',
+  isAccessibleForFree: true,
+  inLanguage: 'en',
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+  featureList: tool ? [tool.tagline] : undefined,
+  publisher: organization,
+  ...(keywords.length ? { keywords: keywords.join(', ') } : {}),
+};
+
+/** Site-level graph, emitted once on the home page. */
+const siteGraph = isHome
+  ? {
+      '@context': 'https://schema.org',
+      '@graph': [
+        {
+          '@type': 'WebSite',
+          '@id': `${SITE.url}/#website`,
+          url: SITE.url,
+          name: SITE.name,
+          description: SITE.description,
+          inLanguage: 'en',
+          publisher: { '@id': `${SITE.url}/#organization` },
+        },
+        { '@id': `${SITE.url}/#organization`, ...organization },
+      ],
+    }
+  : null;
+
+const breadcrumbs = tool
+  ? {
+      '@context': 'https://schema.org',
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Home', item: SITE.url },
+        ...(isHome ? [] : [{ '@type': 'ListItem', position: 2, name: tool.title, item: canonical }]),
+      ],
+    }
+  : null;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    {keywords.length > 0 && <meta name="keywords" content={keywords.join(', ')} />}
+    <link rel="canonical" href={canonical} />
+    <meta name="theme-color" content="#08090b" />
+    <meta name="color-scheme" content="dark" />
+    <meta
+      name="robots"
+      content={noindex ? 'noindex, nofollow' : 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1'}
+    />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={SITE.name} />
+    <meta property="og:locale" content="en_GB" />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={image} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content={`${SITE.name}: ${SITE.tagline}`} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={fullTitle} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={image} />
+    <meta name="twitter:image:alt" content={`${SITE.name}: ${SITE.tagline}`} />
+
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <link rel="manifest" href="/site.webmanifest" />
+
+    <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+    {siteGraph && <script type="application/ld+json" set:html={JSON.stringify(siteGraph)} />}
+    {breadcrumbs && <script type="application/ld+json" set:html={JSON.stringify(breadcrumbs)} />}
+    <slot name="head" />
+
+    {/* Analytics: production only, and skipped on noindex pages (dev harness, social card). */}
+    {!noindex && <Analytics />}
+  </head>
+
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <SiteHeader />
+
+    <div class="shell">
+      <SiteRail />
+      <main class="main" id="main">
+        <slot />
+        <SiteFooter />
+      </main>
+    </div>
+
+    <script>
+      import { initGlobalTransport } from '../lib/ui/transport';
+      import { installDebugApi } from '../lib/audio/debug';
+
+      installDebugApi();
+      initGlobalTransport();
+
+      // Mobile rail toggle
+      const toggle = document.querySelector<HTMLButtonElement>('[data-rail-toggle]');
+      const rail = document.getElementById('site-rail');
+      toggle?.addEventListener('click', () => {
+        const open = rail?.getAttribute('data-open') === 'true';
+        rail?.setAttribute('data-open', String(!open));
+        toggle.setAttribute('aria-expanded', String(!open));
+      });
+
+      // The global "Stop all" button also stops page-local players.
+      document.addEventListener('sg:stop-all', () => {
+        document.querySelectorAll<HTMLElement>('[data-stop-reflect]').forEach((el) => {
+          el.setAttribute('aria-pressed', 'false');
+        });
+      });
+    </script>
+  </body>
+</html>

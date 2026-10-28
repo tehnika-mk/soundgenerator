@@ -1,0 +1,359 @@
+---
+import Base from '../layouts/Base.astro';
+import Panel from '../components/Panel.astro';
+import { SUBWOOFER_STEPS } from '../lib/audio/notes';
+import { TOOLS } from '../data/tools';
+
+const tool = TOOLS.find((t) => t.href === '/subwoofer-test')!;
+
+const SPEED_OF_SOUND = 343; // m/s at 20 °C
+
+/** What tends to sit at each low-frequency step. */
+const SOURCES: Record<number, string> = {
+  16: 'Infrasonic limit. A 32′ pipe-organ stop, special-effects rigs - felt more than heard.',
+  20: 'Lower edge of hearing for most people. Synthesised sub-bass, earthquake and thunder rumble.',
+  25: 'Large pipe organ and cinema LFE. Most home subwoofers already roll off here.',
+  30: 'Typical small subwoofer limit; club systems and 30 Hz test tones.',
+  35: 'Around the low B of a 5-string bass (≈ 30.9 Hz) and kick-drum fundamentals.',
+  40: 'The low E of a 4-string bass guitar (41.2 Hz); bass-heavy electronic music.',
+  50: 'Mains hum in 50 Hz regions; bass punch; the practical upper limit of many subwoofers.',
+  60: 'Mains hum in 60 Hz regions; bass-guitar body; the warm low end.',
+  70: 'Low end of male voice fundamentals and floor toms.',
+  80: 'Kick-drum body; the lower limit of many bookshelf speakers.',
+  90: 'Low male vocals and bass midrange; the chest-thump region.',
+  100: 'Bass punch; snare fundamental; a common subwoofer crossover point.',
+  120: 'Upper bass / low midrange; bass-guitar harmonics, low cello (≈ 65–130 Hz).',
+  150: 'Upper bass; male voice and low guitar - most speakers reproduce this with ease.',
+  200: 'Low midrange, not sub-bass: the boundary between bass and mids.',
+};
+
+const stepRows = SUBWOOFER_STEPS.map((hz) => ({
+  hz,
+  wavelength: (SPEED_OF_SOUND / hz).toFixed(2),
+  source: SOURCES[hz] ?? '',
+}));
+
+const faqs = [
+  {
+    q: 'Why does my system seem silent at 16–30 Hz?',
+    a: 'Because almost no playback device reproduces those frequencies at useful level. A 16 Hz wave needs a quarter-wavelength of over five metres to radiate well, so it takes a large driver in a large box. If you hear nothing at 20 Hz, that is a fact about the speaker, not a fault - check the wavelength column to see why the low steps are the hardest.',
+  },
+  {
+    q: 'The A/B compare plays three tones at the same level - what am I listening for?',
+    a: 'Which of 20, 40 and 80 Hz sounds quieter or disappears. Play them one after another at the same gain: if 20 Hz is far quieter than 40 and 80, your room and speakers are rolling off the bottom. The room matters as much as the driver - a 40 Hz standing wave can make one listening position boom and another cancel completely.',
+  },
+  {
+    q: 'Will a long sweep damage my speakers?',
+    a: 'It can. Sub-bass at high level is hard on drivers because the cone has to move a long way for very little audible output; a driver can be pushed to its limit while sounding quiet. Heat builds in the voice coil during sustained low tones. Keep the level modest, keep durations short, and never run a sweep at full volume.',
+  },
+  {
+    q: 'Why do low frequencies sound “slow” or “bloated”?',
+    a: 'Long wavelengths interact with the room. A 40 Hz tone has a 8.6 m wavelength, so reflections from walls arrive far out of phase and set up standing waves: some seats boom, others cancel. That is also why tone-quality claims are limited by the playback device - the file is a clean sine, but what you hear is the sine after it has bounced around your room.',
+  },
+];
+
+const sweepWavelengths = stepRows.map((row) => row);
+---
+
+<Base
+  title={tool.title}
+  description={tool.meta}
+  tool={tool}
+  keywords={tool.keywords}
+>
+  <!-- ============================ Hero ============================ -->
+  <div class="hero">
+    <div class="hero__text">
+      <p class="label label--accent">Hearing &amp; speakers · 16 – 200 Hz</p>
+      <h1>{tool.title}</h1>
+      <p class="hero__lead">
+        Low-frequency test signals for finding the limits of a subwoofer, a room or your own hearing. Step through the
+        standard frequencies, run a continuous 16–120 Hz sweep with a rattle-finding mode, and compare three bass notes
+        at matched level to hear which ones your setup reproduces.
+      </p>
+    </div>
+    <div class="hero__aside">
+      <div class="notice">
+        <span class="notice__icon" aria-hidden="true">!</span>
+        <p class="notice__body">
+          Start loud enough to hear the tone, never at full volume. Long sub-bass exposure at high level damages
+          drivers more than ears - the cone moves a long way for little audible output and the voice coil heats up.
+          Keep levels modest and sessions short. What you hear is also limited by your playback device and room.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================== Sub test rig ======================= -->
+  <section class="panel" id="sub" aria-labelledby="sub-heading">
+    <header class="panel__head">
+      <div class="flex items-center gap-2">
+        <span class="label" id="sub-heading">Subwoofer test rig</span>
+        <span class="badge badge--signal">Web Audio</span>
+      </div>
+      <button class="btn btn--ghost btn--sm" type="button" data-stop-all>Stop all</button>
+    </header>
+
+    <div class="panel__body sub__body">
+      <!-- Left: step tones + controls -->
+      <div class="stack">
+        <div class="row-between">
+          <span class="label">Step tones · {SUBWOOFER_STEPS[0]} – {SUBWOOFER_STEPS[SUBWOOFER_STEPS.length - 1]} Hz</span>
+          <span class="mono row-between__hint">click to play, click again to stop</span>
+        </div>
+
+        <div class="steps" role="group" aria-label="Step tone frequencies" data-steps>
+          {
+            SUBWOOFER_STEPS.map((hz) => (
+              <div class="step">
+                <button
+                  class="step__btn"
+                  type="button"
+                  data-step={hz}
+                  aria-pressed="false"
+                  aria-label={`Play ${hz} hertz`}
+                >
+                  <span class="step__hz mono">{hz} Hz</span>
+                  <span class="step__wave mono">{(SPEED_OF_SOUND / hz).toFixed(2)} m</span>
+                </button>
+                <button
+                  class="btn btn--ghost btn--sm step__dl"
+                  type="button"
+                  data-dl-step={hz}
+                  aria-label={`Download ${hz} hertz as WAV`}
+                >
+                  ↓
+                </button>
+              </div>
+            ))
+          }
+        </div>
+
+        <div class="sweep">
+          <label class="field field--inline">
+            <span class="label">Sweep 16 → 120 Hz</span>
+            <span class="field__input">
+              <input
+                class="input mono sweep__duration"
+                type="number"
+                min="2"
+                max="60"
+                step="1"
+                value="10"
+                data-sweep-duration
+                aria-label="Sweep duration in seconds"
+              />
+              <span class="mono sweep__unit">s</span>
+            </span>
+          </label>
+          <label class="check">
+            <input type="checkbox" data-rattle />
+            <span>Find rattles (repeat, triangle)</span>
+          </label>
+          <button class="btn btn--primary" type="button" data-sweep aria-pressed="false">Start sweep</button>
+          <span class="mono sweep__readout" data-sweep-readout> - </span>
+        </div>
+
+        <div class="compare">
+          <span class="label">Level-matched A/B · same gain for all three</span>
+          <div class="compare__row" role="group" aria-label="Level-matched comparison tones">
+            {
+              [20, 40, 80].map((hz) => (
+                <button class="btn compare__btn" type="button" data-ab={hz} aria-pressed="false">
+                  {hz} Hz
+                </button>
+              ))
+            }
+          </div>
+          <p class="hint">
+            All three play at exactly the same gain. Play them one after another: whichever sounds quieter or vanishes
+            is the one your speakers and room reproduce least.
+          </p>
+        </div>
+
+        <p class="status mono" data-status role="status" aria-live="polite">Ready. Choose a step tone to begin.</p>
+      </div>
+
+      <!-- Right: analysis -->
+      <div class="stack">
+        <div class="scope scope--spec">
+          <span class="scope__tag">Spectrum · 0 – 20 kHz</span>
+          <canvas data-scope="spectrum" data-peak="true"></canvas>
+        </div>
+        <div class="scope scope--wave">
+          <span class="scope__tag">Oscilloscope · output</span>
+          <canvas data-scope="wave"></canvas>
+        </div>
+        <p class="hint">
+          The spectrum display shows the energy leaving the mixer. A clean 40 Hz sine reads as a single peak at 40 Hz;
+          any extra peaks are harmonics from your system, not from the file.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================= Reference ========================= -->
+  <div class="two-col">
+    <Panel eyebrow="Reference" title="Step frequencies, wavelengths and sources">
+      <div class="table-scroll">
+        <table class="table-tech">
+          <thead>
+            <tr><th>Freq</th><th>Wavelength</th><th>Typically found in</th></tr>
+          </thead>
+          <tbody>
+            {
+              sweepWavelengths.map((row) => (
+                <tr>
+                  <td class="mono">{row.hz} Hz</td>
+                  <td class="mono">{row.wavelength} m</td>
+                  <td>{row.source}</td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+      <p class="hint">
+        Wavelength uses the speed of sound at 20 °C (343 m/s): λ = 343 ÷ f. A wavelength longer than the room is why
+        the lowest tones need large drivers and large cabinets to be produced at all.
+      </p>
+    </Panel>
+
+    <Panel eyebrow="FAQ" title="Questions people actually ask">
+      <div class="faq">
+        {
+          faqs.map((faq) => (
+            <details>
+              <summary>{faq.q}</summary>
+              <p>{faq.a}</p>
+            </details>
+          ))
+        }
+      </div>
+    </Panel>
+  </div>
+
+  <Panel eyebrow="Guide" title="How to test a subwoofer sensibly">
+    <div class="prose-tech">
+      <h2>Step tones first</h2>
+      <p>
+        Play the step tones from the top down - start at 200 Hz where almost everything reproduces, then work
+        downward until a tone stops getting louder as you expect. The frequency where the level drops away is the
+        useful low limit of your system in its position. Write the numbers down; a difference of two or three steps is
+        normal, a cliff of six is a real roll-off.
+      </p>
+      <h2>The sweep and the rattle mode</h2>
+      <p>
+        A sweep moves continuously through the band, which is far better for finding narrow problems than stepping.
+        Switch on <strong>Find rattles</strong> and the sweep repeats with a triangle wave, whose extra harmonics
+        shake loose the buzzes a pure sine misses - a picture frame, a loose grille, a cable against a panel. Walk
+        around the room while it runs; a rattle you can only hear from one seat is a room problem, not a speaker one.
+      </p>
+      <h2>Why the A/B compare is level-matched</h2>
+      <p>
+        Human hearing judges loudness by more than amplitude, so a fair comparison holds everything else constant. The
+        three comparison tones are generated at identical gain; if 20 Hz sounds quieter than 80 Hz, that is your
+        system, not the signal. This is the honest way to find which bass notes disappear in your room.
+      </p>
+      <h2>What this page cannot tell you</h2>
+      <p>
+        It generates a mathematically clean signal. What reaches your ears is that signal after it has passed through
+        your device, your amplifier, your speakers and your room. Claims about tone quality made with these tones are
+        always claims about that chain, limited by every part of it - the generator side of the chain is exact.
+      </p>
+    </div>
+  </Panel>
+
+  <script>
+    import '../scripts/subwoofer-test';
+  </script>
+</Base>
+
+<style>
+  .hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(260px, 1fr);
+    gap: 20px;
+    align-items: start;
+    margin-bottom: 18px;
+  }
+  @media (max-width: 900px) { .hero { grid-template-columns: minmax(0, 1fr); } }
+  .hero h1 { font-size: clamp(1.6rem, 3.2vw, 2.1rem); margin: 6px 0 8px; }
+  .hero__lead { color: var(--color-ink-2); max-width: 68ch; margin: 0; font-size: 14.5px; }
+  .notice__body { margin: 0; }
+
+  .sub__body { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 20px; }
+  @media (max-width: 1000px) { .sub__body { grid-template-columns: minmax(0, 1fr); } }
+  .stack { display: flex; flex-direction: column; gap: 14px; }
+
+  .row-between { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .row-between__hint { font-size: 10.5px; color: var(--color-ink-4); }
+
+  .steps { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; }
+  .step { display: flex; gap: 4px; }
+  .step__btn {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1px;
+    padding: 8px 10px;
+    background: var(--color-panel-2);
+    border: 1px solid var(--color-line-2);
+    border-radius: var(--radius-sm);
+    color: var(--color-ink);
+    cursor: pointer;
+    text-align: left;
+  }
+  .step__btn:hover { border-color: var(--color-line-3); }
+  .step__btn[aria-pressed='true'] { background: var(--color-signal); border-color: var(--color-signal); color: #04231b; }
+  .step__hz { font-size: 13px; font-weight: 600; }
+  .step__wave { font-size: 9.5px; color: var(--color-ink-4); }
+  .step__btn[aria-pressed='true'] .step__wave { color: #04231b; }
+  .step__dl { flex: none; min-width: 30px; padding: 0 6px; }
+
+  .sweep { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .field--inline { flex-direction: row; align-items: center; gap: 9px; flex-wrap: wrap; }
+  .field__input { display: inline-flex; align-items: center; gap: 6px; }
+  .sweep__duration { width: 70px; }
+  .sweep__readout { font-size: 12px; color: var(--color-ink-3); min-width: 110px; }
+  .check { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--color-ink-2); }
+  .check input { accent-color: var(--color-signal); }
+
+  .compare { display: flex; flex-direction: column; gap: 8px; }
+  .compare__row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .compare__btn[aria-pressed='true'] {
+    --btn-bg: var(--color-signal);
+    --btn-bd: var(--color-signal);
+    --btn-fg: #04231b;
+  }
+
+  .hint { margin: 7px 0 0; font-size: 11.5px; color: var(--color-ink-4); line-height: 1.7; }
+  .status { font-size: 11.5px; color: var(--color-ink-3); margin: 0; min-height: 18px; }
+  .status[data-kind='ok'] { color: var(--color-signal); }
+  .status[data-kind='error'] { color: var(--color-danger); }
+  .status[data-kind='warn'] { color: var(--color-warn); }
+
+  .table-scroll { overflow-x: auto; }
+  .table-scroll table { min-width: 440px; }
+
+  .two-col { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; margin-top: 14px; }
+  @media (max-width: 1000px) { .two-col { grid-template-columns: minmax(0, 1fr); } }
+  .two-col :global(.panel + .panel) { margin-top: 0; }
+
+  .faq details { border-bottom: 1px solid var(--color-line); padding: 10px 0; }
+  .faq details:first-of-type { padding-top: 0; }
+  .faq summary {
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 13.5px;
+    list-style: none;
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+  }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary::before { content: '+'; font-family: var(--font-mono); color: var(--color-signal); flex: none; }
+  .faq details[open] summary::before { content: '−'; }
+  .faq details p { margin: 8px 0 0 18px; font-size: 13px; color: var(--color-ink-2); line-height: 1.65; }
+</style>

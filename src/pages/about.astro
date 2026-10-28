@@ -1,0 +1,218 @@
+---
+import Base from '../layouts/Base.astro';
+import Panel from '../components/Panel.astro';
+import { TOOLS, SITE, CATEGORY_ORDER, toolsByCategory } from '../data/tools';
+
+const tool = TOOLS.find((t) => t.href === '/about')!;
+const allTools = TOOLS.filter((t) => !t.content);
+---
+
+<Base title={tool.title} description={tool.meta} tool={tool} keywords={tool.keywords}>
+  <!-- ============================ Hero ============================ -->
+  <div class="hero">
+    <div class="hero__text">
+      <p class="label label--accent">Reference · About this site</p>
+      <h1>About Sound Generator</h1>
+      <p class="hero__lead">
+        Sound Generator is a set of audio test tools that run entirely in your browser. Every tone, sweep and noise
+        signal is synthesised on your device with the Web Audio API. There is no server, no account and no upload.
+      </p>
+    </div>
+    <div class="hero__aside">
+      <div class="notice notice--info">
+        <span class="notice__icon" aria-hidden="true">i</span>
+        <p class="notice__body">
+          The site is free, has no ads and does not track you. If it is useful, the whole thing works offline once
+          loaded.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== Long-form content ===================== -->
+  <Panel eyebrow="Principles" title="What this site is">
+    <div class="prose-tech">
+      <h2>Design principles</h2>
+      <ul>
+        <li><strong>One page per job.</strong> Each tool does one thing and does it fully. The
+          <a href="/">tone generator</a> makes a tone; the <a href="/sweep-generator">sweep generator</a> makes a
+          sweep. Nothing is hidden behind a menu of modes.</li>
+        <li><strong>Exact numbers.</strong> Every readout is the real figure: frequency in hertz, level in decibels,
+          duration in milliseconds, wavelength in metres. No rounded marketing figures.</li>
+        <li><strong>No accounts.</strong> Nothing to sign up for and nothing to log in to. Every setting lives in the
+          URL, so a link is also a preset.</li>
+        <li><strong>No ads.</strong> No advertising, no sponsorship and no affiliate links. There is nothing on the
+          page competing with the tool.</li>
+        <li><strong>Works offline.</strong> Audio is generated locally, so once a page has loaded it keeps working with
+          no network connection.</li>
+      </ul>
+
+      <h2>How it works</h2>
+      <p>
+        Every sound is built with the Web Audio API, the audio engine built into your browser. A short script creates
+        an oscillator, a noise source or a sweep, routes it through a master gain and a safety limiter, and connects it
+        to your output device. Nothing is fetched, streamed or rendered on a server.
+      </p>
+      <p>
+        The site is a static set of pages. There is no application framework running in the browser, no server
+        rendering and no database. Everything you see is generated at build time and shipped as plain HTML, CSS and a
+        little JavaScript.
+      </p>
+      <h3>The offline WAV export</h3>
+      <p>
+        When you save a tone as a WAV file, the browser renders the signal offline with an
+        <code>OfflineAudioContext</code>, the same maths as the live signal but faster than real time, then encodes the
+        result as 16-bit PCM and hands it to your browser as a download. The file is built on your device. Nothing is
+        uploaded to produce it.
+      </p>
+      <h3>The limiter and the master level</h3>
+      <p>
+        Every signal passes through one shared master gain and one shared limiter. The master gain is the slider in the
+        header; it sets the output level for the whole site and is remembered between visits. The limiter is a safety
+        net that catches signals that would otherwise clip in the digital domain. It is not a mixing tool, and it does
+        not protect your ears: only a sensible level does that.
+      </p>
+
+      <h2>What the tools can and cannot tell you</h2>
+      <p>
+        These are signal generators and simple measurement aids, not calibrated instruments. Be clear about the limits.
+      </p>
+      <ul>
+        <li><strong>No medical diagnosis.</strong> The <a href="/hearing-test">hearing test</a> steps through
+          frequencies and logs what you report. It cannot measure hearing thresholds, cannot account for the level your
+          device actually produces, and is not a substitute for an audiologist.</li>
+        <li><strong>Your playback device is the real limit.</strong> Built-in laptop speakers cannot reproduce 40 Hz.
+          Most headphones roll off above 16 kHz. If you cannot hear a tone, it may be the speaker, not your ear.</li>
+        <li><strong>kHz limits come from the sample rate.</strong> The browser runs at its own sample rate, usually
+          44.1 or 48 kHz. That sets a hard ceiling at the Nyquist frequency, half the sample rate, above which no
+          correct signal can be produced.</li>
+        <li><strong>Browser mixers can resample.</strong> Your operating system or a Bluetooth codec may resample or
+          compress the audio before it reaches the speaker. Frequency accuracy is preserved, but absolute level and the
+          very highest frequencies may not be.</li>
+        <li><strong>Frequency is precise, level is not.</strong> The oscillator frequency is exact to the accuracy of
+          your sound card clock, normally better than 0.01 %. The level you hear depends on the whole chain and cannot
+          be read from this site.</li>
+      </ul>
+
+      <h2>Who it is for</h2>
+      <ul>
+        <li><strong>Musicians</strong> tuning instruments against a <a href="/instrument-tuning">reference pitch</a> or
+          checking a note by ear.</li>
+        <li><strong>Engineers and technicians</strong> testing speakers, drivers, crossovers and room response with
+          <a href="/sweep-generator">sweeps</a> and <a href="/noise-generator">noise</a>.</li>
+        <li><strong>Teachers</strong> demonstrating interference, beats and harmonics, with the physics on the
+          <a href="/theory">acoustic theory</a> page.</li>
+        <li><strong>Installers</strong> checking telephone and DTMF signalling with the
+          <a href="/dtmf">DTMF generator</a> and <a href="/pips">time pips</a>.</li>
+        <li><strong>Students</strong> learning what a frequency, a wavelength or a decibel actually sounds like.</li>
+        <li><strong>Anyone</strong> who needs to test a speaker, a set of headphones or a hearing range.</li>
+      </ul>
+
+      <h2>Build note</h2>
+      <p>
+        The site is built with <strong>Astro</strong> and <strong>Tailwind CSS</strong> and deployed as static files.
+        There are no accounts, no advertising, no cookie banner and no behavioural tracking. Every page is served from
+        this domain; the one exception is Google Analytics, which measures page views in aggregate so that whoever pays
+        for the hosting can see which tools are worth keeping. It is loaded in production builds only, it is skipped
+        entirely if your browser sends Do Not Track or Global Privacy Control, and the
+        <a href="/privacy">privacy policy</a> describes exactly what it does and how to block it.
+      </p>
+
+      <h2>Contact</h2>
+      <p>
+        Questions, bug reports and corrections are welcome. Write to
+        <a href="mailto:hello@tehnika.mk">hello@tehnika.mk</a>. The address is also listed in plain
+        text as <code>hello@tehnika.mk</code>.
+      </p>
+      <p>
+        How your data is handled is set out in the <a href="/privacy">privacy policy</a>.
+      </p>
+    </div>
+  </Panel>
+
+  <!-- ===================== Site index ===================== -->
+  <Panel eyebrow="Index" title="Everything on the site">
+    <div class="prose-tech">
+      <p>
+        Every tool on the site, grouped by category. This doubles as a full index of the pages that generate sound.
+      </p>
+    </div>
+    {
+      CATEGORY_ORDER.map((category) => {
+        const items = toolsByCategory(category).filter((t) => !t.content);
+        if (items.length === 0) return null;
+        return (
+          <div class="index-group">
+            <p class="label index-group__title">{category}</p>
+            <div class="card-grid">
+              {items.map((item) => (
+                <a class="card" href={item.href}>
+                  <p class="card__t">{item.title}</p>
+                  <p class="card__d">{item.tagline}</p>
+                </a>
+              ))}
+            </div>
+          </div>
+        );
+      })
+    }
+    <p class="hint">
+      {allTools.length} tools in total, plus the <a href="/theory">acoustic theory</a> reference and this page.
+    </p>
+  </Panel>
+
+  <!-- ===================== Content pages ===================== -->
+  <Panel eyebrow="More" title="Reference and legal pages">
+    <div class="card-grid">
+      <a class="card" href="/theory">
+        <p class="card__t">Acoustic Theory</p>
+        <p class="card__d">The maths behind the tones: sine waves, harmonics, decibels, wavelengths and sample rates.</p>
+      </a>
+      <a class="card" href="/sitemap">
+        <p class="card__t">Sitemap</p>
+        <p class="card__d">Every tool and page on the site, grouped by what it does.</p>
+      </a>
+      <a class="card" href="/privacy">
+        <p class="card__t">Privacy Policy</p>
+        <p class="card__d">No accounts, no uploads and no audio leaves your device. It also covers the one thing that does leave: aggregate page-view statistics.</p>
+      </a>
+    </div>
+  </Panel>
+
+  <p class="hint">Site email: <a href="mailto:hello@tehnika.mk">{SITE.email}</a></p>
+</Base>
+
+<style>
+  .hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(260px, 1fr);
+    gap: 20px;
+    align-items: start;
+    margin-bottom: 18px;
+  }
+  @media (max-width: 900px) {
+    .hero { grid-template-columns: minmax(0, 1fr); }
+  }
+  .hero h1 {
+    font-size: clamp(1.6rem, 3.2vw, 2.1rem);
+    margin: 6px 0 8px;
+  }
+  .hero__lead {
+    color: var(--color-ink-2);
+    max-width: 68ch;
+    margin: 0;
+    font-size: 14.5px;
+  }
+  .notice__body { margin: 0; }
+
+  .index-group { margin-top: 16px; }
+  .index-group__title { margin-bottom: 8px; }
+
+  .hint {
+    margin: 12px 0 0;
+    font-size: 11.5px;
+    color: var(--color-ink-4);
+    line-height: 1.7;
+  }
+  .hint a { color: var(--color-signal); text-decoration: underline; text-underline-offset: 2px; }
+</style>

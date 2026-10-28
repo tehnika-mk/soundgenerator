@@ -1,0 +1,499 @@
+---
+import Base from '../layouts/Base.astro';
+import Panel from '../components/Panel.astro';
+import { TOOLS } from '../data/tools';
+
+const tool = TOOLS.find((t) => t.href === '/theory')!;
+
+const related = TOOLS.filter((t) =>
+  ['/', '/sweep-generator', '/noise-generator', '/hearing-test', '/instrument-tuning', '/subwoofer-test'].includes(t.href),
+);
+---
+
+<Base title={tool.title} description={tool.meta} tool={tool} keywords={tool.keywords}>
+  <!-- ============================ Hero ============================ -->
+  <div class="hero">
+    <div class="hero__text">
+      <p class="label label--accent">Reference · Physics of sound</p>
+      <h1>Acoustic Theory</h1>
+      <p class="hero__lead">
+        A technical reference for the physics behind every generator on this site: what a sine wave is, how frequency,
+        period and wavelength relate, why decibels are logarithmic, where harmonics come from, and how sampling,
+        hearing and musical pitch work. Written for someone technical who is new to audio.
+      </p>
+    </div>
+    <div class="hero__aside">
+      <div class="notice">
+        <span class="notice__icon" aria-hidden="true">!</span>
+        <p class="notice__body">
+          Several sections describe hearing thresholds and exposure limits. Read those before using the
+          <a href="/hearing-test">hearing test</a> or a <a href="/sweep-generator">sweep generator</a>, and keep the
+          site level low.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================= Calculator ======================= -->
+  <section class="panel" id="calculator" aria-labelledby="calc-heading">
+    <header class="panel__head">
+      <div class="flex items-center gap-2">
+        <span class="label" id="calc-heading">Calculator</span>
+        <span class="badge">c = 343 m/s</span>
+      </div>
+      <span class="mono calc__formula">λ = c / f · T = 1 / f</span>
+    </header>
+    <div class="panel__body calc">
+      <div class="calc__input">
+        <label class="label" for="calc-freq">Frequency (Hz)</label>
+        <input
+          id="calc-freq"
+          class="input input--readout mono"
+          data-calc="freq"
+          type="text"
+          inputmode="decimal"
+          value="440"
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <p class="hint">
+          Enter any value from 1 Hz to 20 kHz. The readouts update as you type. Wavelength uses c = 343 m/s, the speed
+          of sound in dry air at 20 °C.
+        </p>
+      </div>
+      <div class="stat-grid calc__stats">
+        <div class="stat"><p class="stat__k">Wavelength (m)</p><p class="stat__v" data-calc="wavelength-m">0.780 m</p></div>
+        <div class="stat"><p class="stat__k">Wavelength (mm)</p><p class="stat__v" data-calc="wavelength-mm">780 mm</p></div>
+        <div class="stat"><p class="stat__k">Period (ms)</p><p class="stat__v" data-calc="period-ms">2.27 ms</p></div>
+        <div class="stat"><p class="stat__k">Nearest note</p><p class="stat__v" data-calc="nearest">A4 · 440 Hz</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== Long-form reference ===================== -->
+  <Panel eyebrow="Reference" title="Acoustic theory">
+    <div class="prose-tech">
+      <h2>1. What a sine wave is</h2>
+      <p>
+        A sine wave is the simplest possible sound. At any moment its value is
+      </p>
+      <p><code>y = A · sin(2πft + φ)</code></p>
+      <p>
+        where <code>A</code> is the amplitude, <code>f</code> is the frequency in hertz, <code>t</code> is time in
+        seconds and <code>φ</code> is the phase in radians. Amplitude sets how far the wave swings from zero, which
+        you hear as level. Frequency sets how many cycles pass each second, which you hear as pitch. Phase sets where
+        in its cycle the wave starts, which you hear only when two waves combine.
+      </p>
+      <p>
+        The cycle repeats every period <code>T = 1 / f</code>. A 440 Hz tone repeats 440 times a second, so one period
+        lasts <code>1 / 440 ≈ 2.273 ms</code>.
+      </p>
+      <h3>Why sine is the building block</h3>
+      <p>
+        The Fourier theorem states that any repeating signal, however complex, can be written as a sum of sine waves at
+        whole-number multiples of a base frequency. The reverse is also true: a complex sound is nothing but a set of
+        sines added together. This is why a sine is the reference signal for calibration and testing. It contains
+        energy at exactly one frequency and nothing else, so anything the sine picks up is a property of the system
+        under test, not of the signal.
+      </p>
+
+      <h2>2. Frequency, period and wavelength</h2>
+      <p>
+        Frequency and period are reciprocal:
+      </p>
+      <p><code>f = 1 / T</code></p>
+      <p>
+        Wavelength is the physical distance the wave travels through one cycle:
+      </p>
+      <p><code>λ = c / f</code></p>
+      <p>
+        where <code>c</code> is the speed of sound. In dry air at 20 °C, <code>c ≈ 343 m/s</code>. The speed is not
+        constant. It rises with temperature at roughly <code>0.606 m/s</code> per °C, so a rough model is
+        <code>c ≈ 331.3 + 0.606 · θ</code> m/s for air temperature <code>θ</code> in °C. At 0 °C the speed is about
+        331 m/s; at 30 °C it is about 349 m/s. Humidity changes it by a smaller amount. All wavelengths in this
+        reference use 343 m/s.
+      </p>
+      <table class="table-tech">
+        <caption class="label">Period and wavelength at reference frequencies (c = 343 m/s)</caption>
+        <thead>
+          <tr><th>Frequency</th><th>Period</th><th>Wavelength (m)</th><th>Wavelength (mm)</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="mono">20 Hz</td><td class="mono">50 ms</td><td class="mono">17.15 m</td><td class="mono">17 150 mm</td></tr>
+          <tr><td class="mono">100 Hz</td><td class="mono">10 ms</td><td class="mono">3.43 m</td><td class="mono">3 430 mm</td></tr>
+          <tr><td class="mono">440 Hz</td><td class="mono">2.273 ms</td><td class="mono">0.780 m</td><td class="mono">780 mm</td></tr>
+          <tr><td class="mono">1 kHz</td><td class="mono">1 ms</td><td class="mono">0.343 m</td><td class="mono">343 mm</td></tr>
+          <tr><td class="mono">10 kHz</td><td class="mono">0.1 ms</td><td class="mono">0.0343 m</td><td class="mono">34.3 mm</td></tr>
+          <tr><td class="mono">20 kHz</td><td class="mono">0.05 ms</td><td class="mono">0.01715 m</td><td class="mono">17.15 mm</td></tr>
+        </tbody>
+      </table>
+      <p>
+        The pattern to remember: raise the frequency by a factor of ten and the wavelength drops by the same factor. A
+        20 Hz wave is longer than a room. A 20 kHz wave is smaller than a fingertip.
+      </p>
+
+      <h2>3. Amplitude and the decibel</h2>
+      <p>
+        Human hearing spans an enormous range of pressures, from the threshold of hearing to the threshold of pain. A
+        linear scale would be unusable, so level is measured in decibels, which are logarithmic.
+      </p>
+      <p>
+        For a ratio of two powers, <code>dB = 10 · log10(P2 / P1)</code>. For a ratio of two voltages or amplitudes,
+        <code>dB = 20 · log10(A2 / A1)</code>. The factor of two appears because power is proportional to amplitude
+        squared.
+      </p>
+      <h3>The numbers worth memorising</h3>
+      <ul>
+        <li><code>6 dB</code> is a doubling of voltage or amplitude, <code>20 · log10(2) ≈ 6.02 dB</code>.</li>
+        <li><code>10 dB</code> is a doubling of perceived loudness, a rule of thumb that holds over the mid range.</li>
+        <li><code>3 dB</code> is a doubling of power, <code>10 · log10(2) ≈ 3.01 dB</code>.</li>
+      </ul>
+      <h3>The three decibel scales used here</h3>
+      <p>
+        <strong>dB SPL</strong> is sound pressure level relative to 20 µPa, the nominal threshold of hearing. It is an
+        absolute measure of the acoustic pressure in air. A quiet room is about 30 dB SPL; normal speech is about
+        60 dB SPL.
+      </p>
+      <p>
+        <strong>dBFS</strong> is decibels relative to digital full scale. 0 dBFS is the largest value a sample can
+        hold. Everything below it is negative. A signal at -6 dBFS peaks at half the amplitude of full scale. Digital
+        clipping happens when a value tries to exceed 0 dBFS.
+      </p>
+      <p>
+        <strong>dBu</strong> is decibels relative to 0.775 V, a reference inherited from telephone and line-level
+        equipment. It describes an electrical voltage, not sound pressure, so it is only meaningful for the analogue
+        part of a chain.
+      </p>
+
+      <h2>4. Harmonics and timbre</h2>
+      <p>
+        A pure sine is one frequency. A real instrument radiates many frequencies at once, and the mix of those
+        frequencies is what we call timbre. The components above the lowest one, the fundamental, are called
+        harmonics, at whole-number multiples of the fundamental.
+      </p>
+      <p>
+        Each classic waveform has a fixed recipe of harmonics:
+      </p>
+      <table class="table-tech">
+        <thead>
+          <tr><th>Waveform</th><th>Harmonics present</th><th>Amplitude of harmonic n</th><th>Character</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="mono">Square</td><td class="mono">Odd only</td><td class="mono">1 / n</td><td>Hollow and buzzy</td></tr>
+          <tr><td class="mono">Sawtooth</td><td class="mono">All harmonics</td><td class="mono">1 / n</td><td>Bright and string-like</td></tr>
+          <tr><td class="mono">Triangle</td><td class="mono">Odd only</td><td class="mono">1 / n²</td><td>Mellow and soft</td></tr>
+        </tbody>
+      </table>
+      <p>
+        A square wave keeps only the odd harmonics, at 1, 3, 5, 7 and so on, each with amplitude <code>1 / n</code>. A
+        sawtooth keeps every harmonic, also at <code>1 / n</code>, so it has roughly twice the number of partials and
+        sounds brighter. A triangle keeps only the odd harmonics but rolls them off as <code>1 / n²</code>, so the high
+        partials fade much faster and the result is softer than a square.
+      </p>
+      <p>
+        A square and a sawtooth sound bright because their high harmonics stay strong as <code>1 / n</code>, which
+        falls slowly. A sine has no harmonics at all, and a triangle loses them as <code>1 / n²</code>, which falls
+        fast. This is also why a square or saw reads as a dense comb of peaks in a spectrum display, while a sine reads
+        as a single peak.
+      </p>
+      <h3>Duty cycle</h3>
+      <p>
+        A square wave with equal high and low halves has a 50 % duty cycle. Change the fraction of the period spent
+        high and the harmonic content changes: a pulse narrower than 50 % develops even harmonics, and the timbre moves
+        from hollow towards thinner and more nasal. The pulse train in the <a href="/alarm-generator">alarm
+        generator</a> is the audible version of this.
+      </p>
+      <h3>Aliasing of harmonics above Nyquist</h3>
+      <p>
+        Harmonics do not stop at the audible limit. A 1 kHz square has partials at 3, 5, 7 kHz and onward forever. In
+        a digital system, any harmonic above half the sample rate, the Nyquist frequency, cannot be represented. It
+        does not simply disappear. It folds back to a lower frequency, a mirror image of itself, and appears as an
+        inharmonic tone that was not in the original signal. Good synthesisers limit the number of harmonics generated
+        so that none cross Nyquist, which is why a high square wave in a digital generator can sound less rich than
+        the maths suggests.
+      </p>
+
+      <h2>5. Sampling</h2>
+      <p>
+        Digital audio stores a sound as a series of measurements, or samples, taken at a steady rate, the sample rate.
+        CD audio uses 44 100 samples per second, written <code>44.1 kHz</code>. The rate must be high enough to capture
+        the fastest change in the signal.
+      </p>
+      <h3>The Nyquist–Shannon theorem</h3>
+      <p>
+        The sampling theorem states that a signal can be reconstructed exactly only if the sample rate is greater than
+        twice the highest frequency present:
+      </p>
+      <p><code>fs &gt; 2 · fmax</code></p>
+      <p>
+        Half the sample rate is the Nyquist frequency. At 44.1 kHz it is 22.05 kHz. Any component above it folds back
+        and is misrepresented, so a real converter filters the input to remove energy above Nyquist before sampling.
+      </p>
+      <h3>Why 44.1 kHz</h3>
+      <p>
+        44.1 kHz was chosen for the compact disc for two reasons. The audible range tops out at roughly 20 kHz, so the
+        rate must exceed 40 kHz. The extra 4.1 kHz gives the anti-aliasing filter a transition band: a filter cannot
+        cut off instantly, so the standard places the passband edge at 20 kHz and the stopband by 22.05 kHz, leaving a
+        small gap to roll off in. Many hardware converters run at 48 kHz, which leaves slightly more headroom.
+      </p>
+      <h3>Quantisation and dynamic range</h3>
+      <p>
+        Each sample is stored with a fixed number of bits. 16-bit audio has 65 536 possible values. The gap between
+        adjacent values is the quantisation step, and the error this introduces sets the noise floor. Every extra bit
+        adds about 6 dB of dynamic range, so 16 bits give roughly <code>16 · 6.02 ≈ 96 dB</code> between the loudest
+        signal and the noise floor.
+      </p>
+      <p>
+        <strong>Dithering</strong> is the practice of adding a tiny amount of low-level noise before quantisation. The
+        error from rounding a sample is correlated with the signal and sounds like harsh distortion on quiet passages.
+        Adding a trace of noise decorrelates that error and turns it into a gentle hiss, which the ear tolerates far
+        better. The noise is below -90 dBFS in 16-bit audio and is inaudible in most material.
+      </p>
+
+      <h2>6. How humans hear</h2>
+      <p>
+        A healthy young ear covers roughly 20 Hz to 20 kHz. The upper limit falls with age and with noise exposure, and
+        the drop is gradual rather than a hard edge.
+      </p>
+      <table class="table-tech">
+        <caption class="label">Typical upper frequency limit by age</caption>
+        <thead>
+          <tr><th>Age</th><th>Typical upper limit</th><th>Comment</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="mono">Under 20</td><td class="mono">20 kHz</td><td>Best case, undamaged hearing</td></tr>
+          <tr><td class="mono">20 to 29</td><td class="mono">17 kHz</td><td>Slow loss begins</td></tr>
+          <tr><td class="mono">30 to 39</td><td class="mono">16 kHz</td><td>High frequencies recede</td></tr>
+          <tr><td class="mono">40 to 49</td><td class="mono">14 kHz</td><td>Common point at which 15 kHz is lost</td></tr>
+          <tr><td class="mono">50 to 59</td><td class="mono">12 kHz</td><td>Presbycusis is clear</td></tr>
+          <tr><td class="mono">60 and over</td><td class="mono">10 kHz</td><td>Highly variable between people</td></tr>
+        </tbody>
+      </table>
+      <p>
+        These are typical values, not rules. Noise exposure, genetics and medical history move them a long way in
+        either direction.
+      </p>
+      <h3>Loudness is not linear</h3>
+      <p>
+        The ear does not treat all frequencies as equally loud. Equal-loudness contours, first mapped by Fletcher and
+        Munson and now standardised as ISO 226, show how much level each frequency needs to sound as loud as a
+        reference tone. The curves bunch up near 3 to 4 kHz, where the ear canal resonates and hearing is most
+        sensitive. This is why a quiet 3 kHz tone can seem far louder than a quiet 100 Hz tone at the same measured
+        level, and why mixing by SPL alone is not enough.
+      </p>
+      <p>
+        As level rises the contours flatten: quiet sounds seem to lose their low and high end, loud sounds seem fuller.
+        This is the basis of the loudness control on older amplifiers, and the reason a mix judged at low volume does
+        not translate directly to a loud system.
+      </p>
+      <h3>Masking</h3>
+      <p>
+        A loud sound hides a quieter one nearby in frequency. This is masking, and it is why white or pink noise can
+        cover a conversation in an open office. Masking is strongest for frequencies just above the masker, and it
+        spreads with the masker's level. Lossy codecs exploit it by discarding components that a nearby strong tone
+        would hide anyway. The <a href="/noise-generator">noise generator</a> is a practical masking tool.
+      </p>
+
+      <h2>7. Musical pitch</h2>
+      <p>
+        Modern Western instruments use twelve-tone equal temperament: the octave is divided into twelve equal steps, and
+        each step is a frequency ratio of <code>2^(1/12) ≈ 1.05946</code>. Equal steps mean instruments can play in any
+        key without retuning, at the cost of every interval except the octave being slightly impure.
+      </p>
+      <p>
+        The size of an interval in cents is
+      </p>
+      <p><code>cents = 1200 · log2(f2 / f1)</code></p>
+      <p>
+        One semitone is 100 cents; one octave is 1200 cents. Concert pitch sets A4 at 440 Hz, defined by ISO 16. The
+        frequency of any equal-tempered note from its MIDI number <code>n</code>, where A4 is 69, is
+      </p>
+      <p><code>f = 440 · 2^((n − 69) / 12)</code></p>
+      <p>
+        Alternative references are common. Verdi tuning puts A4 at 432 Hz, about 31.8 cents flat of concert pitch:
+        <code>1200 · log2(432 / 440) ≈ -31.8</code> cents. Baroque pitch uses 415 Hz. The difference is audible when
+        the two references are played back to back, but within a single piece it changes the character of the
+        instruments, not the intervals. The <a href="/432hz">432 Hz page</a> plays each reference directly.
+      </p>
+
+      <h2>8. Beats and interference</h2>
+      <p>
+        Two tones close in frequency and played together rise and fall in level at a rate equal to the difference
+        between them:
+      </p>
+      <p><code>f_beat = |f1 − f2|</code></p>
+      <p>
+        A 440 Hz tone against a 444 Hz tone produces a 4 Hz beat, four pulses a second. The effect is strongest below
+        about 20 beats per second, after which the two tones merge into a single rough or dissonant sound. Beats are
+        the standard way to tune an instrument by ear: remove the beating and the pitches match. The
+        <a href="/multiple-tone-generator">multiple tone generator</a> can play two tones at once so you can hear this
+        directly.
+      </p>
+      <h3>Binaural and monaural beats</h3>
+      <p>
+        A monaural beat occurs when both tones reach both ears and mix in the air or in one channel. A binaural beat
+        occurs when each ear receives only one tone, through headphones. The difference frequency is then created in
+        the brain rather than in the room, and it can be perceived even though no single place in the air contains the
+        beat. Binaural beats require stereo separation, which the
+        <a href="/binaural-beats">binaural beat generator</a> provides. Claims about their effect on brain states are
+        not firmly established, and this site presents them as tones to listen to, not as therapy.
+      </p>
+      <h3>Standing waves and room modes</h3>
+      <p>
+        Sound reflects from walls, and a reflected wave interferes with the incoming one. At frequencies where the room
+        dimension is a multiple of half a wavelength, the reflections reinforce into a standing wave: some positions
+        get louder, others quieter, and the pressure swells at particular frequencies. These are room modes, given for
+        a dimension <code>L</code> by
+      </p>
+      <p><code>f = c / (2 · L)</code></p>
+      <p>
+        for the fundamental, and integer multiples of it for the higher modes. In a room 4 m long, the first axial mode
+        is <code>343 / (2 · 4) ≈ 42.9 Hz</code>, with the next at 85.8 Hz, 128.6 Hz and so on. A tone near one of those
+        frequencies can sound uneven as you move around the room. The
+        <a href="/subwoofer-test">subwoofer test</a> exists to find these by ear.
+      </p>
+
+      <h2>9. Hearing safety</h2>
+      <p>
+        Sound exposure damages hearing by dose, not by peak alone. Damage accumulates from level multiplied by time,
+        and it is permanent. Recognised occupational limits use a 3 dB exchange rate: every 3 dB of extra level halves
+        the safe exposure time.
+      </p>
+      <table class="table-tech">
+        <caption class="label">Typical exposure limits, 3 dB exchange rate</caption>
+        <thead>
+          <tr><th>Level</th><th>Recommended maximum</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="mono">80 dB</td><td class="mono">40 hours per week</td></tr>
+          <tr><td class="mono">85 dB</td><td class="mono">8 hours per day</td></tr>
+          <tr><td class="mono">91 dB</td><td class="mono">2 hours</td></tr>
+          <tr><td class="mono">94 dB</td><td class="mono">1 hour</td></tr>
+          <tr><td class="mono">100 dB</td><td class="mono">15 minutes</td></tr>
+          <tr><td class="mono">110 dB</td><td class="mono">Under 2 minutes</td></tr>
+        </tbody>
+      </table>
+      <p>
+        These values follow WHO and NIOSH guidance for occupational noise. A pure tone concentrates its energy at one
+        place on the cochlea, and long exposure to a single frequency is harder on that spot than the same level of
+        broadband sound. Tones are also unforgiving of concentration: a sustained 2 kHz tone is far more fatiguing than
+        speech at the same level.
+      </p>
+      <h3>Protecting yourself while testing</h3>
+      <ul>
+        <li>Start with the site level low and raise it only as far as you need to hear.</li>
+        <li>Keep test tones short. A few seconds per frequency is enough to judge audibility.</li>
+        <li>Never test tones in headphones at high level to "check" a frequency. Use a level you would accept for a
+          whole album.</li>
+        <li>Take breaks. Hearing fatigue dulls sensitivity and makes judgements unreliable.</li>
+        <li>If a tone causes discomfort, ringing or a sense of pressure, stop immediately.</li>
+      </ul>
+      <p>
+        This site cannot measure the sound pressure reaching your ears. The level slider on this site controls a
+        digital gain, and the true SPL depends on your device, headphones and the setting of your system volume. Treat
+        the limits above as a reason for caution, not as a calibrated measurement.
+      </p>
+
+      <h2>10. Reference frequencies measured on this site</h2>
+      <p>
+        The table below lists the fixed frequencies the tools on this site use. They come from the standards named at
+        the end of the page, not from estimation.
+      </p>
+      <table class="table-tech">
+        <thead>
+          <tr><th>Frequency</th><th>Where it is used</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="mono">50 Hz</td><td>Mains hum in Europe, and most of the world</td></tr>
+          <tr><td class="mono">60 Hz</td><td>Mains hum in North America and parts of Asia</td></tr>
+          <tr><td class="mono">300 to 3400 Hz</td><td>Speech band of a telephone channel, the classic POTS band</td></tr>
+          <tr><td class="mono">697 to 1633 Hz</td><td>DTMF keypad tones: rows 697, 770, 852, 941 Hz; columns 1209, 1336, 1477, 1633 Hz</td></tr>
+          <tr><td class="mono">1000 Hz</td><td>The pips time signal, six 1000 Hz pips on the hour</td></tr>
+          <tr><td class="mono">250 Hz to 8 kHz</td><td>Standard audiometric test frequencies for a hearing test</td></tr>
+          <tr><td class="mono">17.4 kHz</td><td>The "mosquito" tone, chosen to be audible to younger ears</td></tr>
+          <tr><td class="mono">20 kHz</td><td>Nominal upper limit of human hearing, and the top of this site's range</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </Panel>
+
+  <!-- ============================ Sources ============================ -->
+  <Panel eyebrow="References" title="Standards this page cites">
+    <div class="prose-tech">
+      <p>Plain-text list of the standards and results referenced above.</p>
+      <ul>
+        <li><strong>ISO 16</strong>: standard musical pitch, A4 = 440 Hz.</li>
+        <li><strong>ISO 226</strong>: normal equal-loudness-level contours (the Fletcher and Munson work, later revised).</li>
+        <li><strong>IEC 61672</strong>: sound level meters and the definition of the weighting scales behind dB SPL.</li>
+        <li><strong>Nyquist–Shannon sampling theorem</strong>: exact reconstruction requires a sample rate above twice the highest frequency present.</li>
+        <li><strong>WHO and NIOSH</strong>: occupational noise exposure limits and the 3 dB exchange rate.</li>
+        <li><strong>ITU-T Q.23 / Q.24</strong>: the DTMF tone plan and signalling frequencies.</li>
+        <li><strong>IEC 60645</strong>: audiometric equipment, including the standard test frequencies.</li>
+      </ul>
+    </div>
+  </Panel>
+
+  <!-- ===================== Related tools ===================== -->
+  <Panel eyebrow="More tools" title="Related generators and tests">
+    <div class="card-grid">
+      {
+        related.map((item) => (
+          <a class="card" href={item.href}>
+            <p class="card__t">{item.title}</p>
+            <p class="card__d">{item.tagline}</p>
+          </a>
+        ))
+      }
+    </div>
+  </Panel>
+
+  <script>
+    import '../scripts/theory';
+  </script>
+</Base>
+
+<style>
+  .hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(260px, 1fr);
+    gap: 20px;
+    align-items: start;
+    margin-bottom: 18px;
+  }
+  @media (max-width: 900px) {
+    .hero { grid-template-columns: minmax(0, 1fr); }
+  }
+  .hero h1 {
+    font-size: clamp(1.6rem, 3.2vw, 2.1rem);
+    margin: 6px 0 8px;
+  }
+  .hero__lead {
+    color: var(--color-ink-2);
+    max-width: 68ch;
+    margin: 0;
+    font-size: 14.5px;
+  }
+  .notice__body { margin: 0; }
+
+  .calc {
+    display: grid;
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.4fr);
+    gap: 16px;
+    align-items: start;
+  }
+  @media (max-width: 760px) {
+    .calc { grid-template-columns: minmax(0, 1fr); }
+  }
+  .calc__input { display: flex; flex-direction: column; gap: 6px; }
+  .calc__formula { font-size: 11px; color: var(--color-ink-4); }
+
+  .hint {
+    margin: 7px 0 0;
+    font-size: 11.5px;
+    color: var(--color-ink-4);
+    line-height: 1.7;
+  }
+  .hint a { color: var(--color-signal); text-decoration: underline; text-underline-offset: 2px; }
+  .prose-tech table { margin: 0 0 1rem; }
+  .prose-tech caption { text-align: left; margin-bottom: 6px; color: var(--color-ink-4); }
+</style>

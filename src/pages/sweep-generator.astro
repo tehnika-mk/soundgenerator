@@ -1,0 +1,449 @@
+---
+import Base from '../layouts/Base.astro';
+import Panel from '../components/Panel.astro';
+import { TOOLS } from '../data/tools';
+
+const tool = TOOLS.find((t) => t.href === '/sweep-generator')!;
+
+const WAVES = [
+  ['sine', 'Sine'],
+  ['square', 'Square'],
+  ['sawtooth', 'Sawtooth'],
+  ['triangle', 'Triangle'],
+] as const;
+
+const related = TOOLS.filter((t) =>
+  ['/multiple-tone-generator', '/subwoofer-test', '/noise-generator', '/hearing-test', '/', '/theory'].includes(t.href),
+);
+
+const sweepUses = [
+  ['Driver break-in', '20 Hz → 20 kHz', 'Loosen a new driver’s suspension. Keep the level low; a full-range sweep at high level can damage tweeters.'],
+  ['Room-mode hunting', '20 → 300 Hz, slow', 'Sweep the bass and listen for the frequencies that boom or null - those are the room’s standing waves.'],
+  ['Speaker crossover check', '1 k → 20 kHz', 'Listen for a dip or a dropout where the tweeter takes over. A broken crossover shows up as a gap during the sweep.'],
+  ['Calibration / EQ', '20 → 20 kHz, log', 'Feed a log sweep into a measurement mic, record it, and deconvolve to get the impulse response and frequency response.'],
+  ['Tweeter and hearing limits', '10 k → 20 kHz', 'Find the top of what you or a transducer can reproduce. Most adults stop hearing near 15–17 kHz.'],
+];
+
+const faqs = [
+  {
+    q: 'Why does an exponential sweep sound even while a linear one does not?',
+    a: 'We hear pitch in ratios, not absolute hertz. A linear sweep from 100 Hz to 200 Hz spends as much time in that octave as it does going from 10 kHz to 20 kHz - an octave you can barely notice. An exponential (logarithmic) sweep covers the same number of octaves in every second, so it sounds like a smooth, even glide from bottom to top. For measurements, the log sweep is also the one you deconvolve.',
+  },
+  {
+    q: 'Can a sweep damage my speakers?',
+    a: 'A full-range sweep at a high level absolutely can. A tweeter has a few watts of thermal rating, and the highest octave of a sweep passes through it in a fraction of a second, so the level slider matters more than it does for a single steady tone. Start at a low level, sweep the range you care about rather than always 20 Hz–20 kHz, and never leave a sub-bass sweep running at full level - small speakers cannot reproduce 20 Hz and will just distort.',
+  },
+  {
+    q: 'What does “hold the final tone” do?',
+    a: 'With it on, the sweep runs to the end frequency and then keeps sounding that tone until you press Stop. It is useful for checking a crossover point or a single frequency you want to stay on. With it off, the output goes silent the moment the sweep finishes.',
+  },
+  {
+    q: 'Is the saved WAV exactly what I heard?',
+    a: 'Yes. Save WAV renders the same start/end frequencies, duration, waveform, ramp and level curve offline in your browser and downloads a 16-bit PCM file at 44.1 kHz - the whole sweep, with a short fade at the start so the file does not click. It works in any audio editor or measurement tool.',
+  },
+];
+---
+
+<Base title={tool.title} description={tool.meta} tool={tool} keywords={tool.keywords}>
+  <!-- ============================ Hero ============================ -->
+  <div class="hero">
+    <div class="hero__text">
+      <p class="label label--accent">Generator · 1 Hz – 20 kHz sweep</p>
+      <h1>{tool.title}</h1>
+      <p class="hero__lead">
+        Sweep smoothly between any two frequencies, linearly or logarithmically, over 0.5 to 120 seconds. Set separate
+        start and end levels, hold the final tone, or loop the whole thing. The sweep is synthesised live in your
+        browser and can be saved as a WAV file.
+      </p>
+    </div>
+    <div class="hero__aside">
+      <div class="notice">
+        <span class="notice__icon" aria-hidden="true">!</span>
+        <p class="notice__body">
+          A full-range sweep at a high level can damage tweeters, and sub-bass content needs speakers that can actually
+          reproduce it. Start at a low level, sweep only the range you need, and be ready to stop. The limiter
+          prevents digital clipping, not loud playback.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================= Sweep panel ======================= -->
+  <section class="panel" id="sweep" data-sweep-panel aria-labelledby="sweep-heading">
+    <header class="panel__head">
+      <div class="flex items-center gap-2">
+        <span class="label" id="sweep-heading">Sweep</span>
+        <span class="badge">Web Audio</span>
+      </div>
+      <span class="badge badge--signal badge--live" data-sweep="live" hidden>playing</span>
+    </header>
+
+    <div class="panel__body sweep__body">
+      <!-- Left: controls -->
+      <div class="stack">
+        <div class="field-row">
+          <div class="field">
+            <label class="label" for="sweep-start">Start frequency (Hz)</label>
+            <input
+              id="sweep-start"
+              class="input mono"
+              data-sweep="start"
+              type="text"
+              inputmode="decimal"
+              value="20"
+              autocomplete="off"
+              spellcheck="false"
+            />
+          </div>
+          <div class="field">
+            <label class="label" for="sweep-end">End frequency (Hz)</label>
+            <input
+              id="sweep-end"
+              class="input mono"
+              data-sweep="end"
+              type="text"
+              inputmode="decimal"
+              value="20000"
+              autocomplete="off"
+              spellcheck="false"
+            />
+          </div>
+          <div class="field">
+            <label class="label" for="sweep-duration">Duration (0.5 – 120 s)</label>
+            <input
+              id="sweep-duration"
+              class="input mono"
+              data-sweep="duration"
+              type="number"
+              min="0.5"
+              max="120"
+              step="0.5"
+              value="5"
+            />
+          </div>
+          <div class="field">
+            <label class="label" for="sweep-wave">Waveform</label>
+            <select id="sweep-wave" class="input mono" data-sweep="wave">
+              {WAVES.map(([value, label], i) => <option value={value} selected={i === 0}>{label}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <span class="label" id="sweep-ramp-label">Ramp type</span>
+          <div class="segmented" role="group" aria-labelledby="sweep-ramp-label">
+            <button class="segmented__item" type="button" data-sweep="ramp" data-value="linear" aria-pressed="false">
+              Linear
+            </button>
+            <button class="segmented__item" type="button" data-sweep="ramp" data-value="exp" aria-pressed="true">
+              Exponential
+            </button>
+          </div>
+          <p class="hint">
+            Linear moves by the same number of hertz each second; exponential moves by the same number of octaves, so
+            it sounds even from bottom to top.
+          </p>
+        </div>
+
+        <div class="level-pair">
+          <label class="voice-slider">
+            <span class="label">Start level</span>
+            <input
+              class="slider"
+              type="range"
+              min="0"
+              max="100"
+              step="1"
+              value="50"
+              data-sweep="start-level"
+              aria-label="Start level, percent"
+            />
+            <span class="mono voice-slider__val" data-sweep="start-level-read">50</span>
+          </label>
+          <label class="voice-slider">
+            <span class="label">End level</span>
+            <input
+              class="slider"
+              type="range"
+              min="0"
+              max="100"
+              step="1"
+              value="50"
+              data-sweep="end-level"
+              aria-label="End level, percent"
+            />
+            <span class="mono voice-slider__val" data-sweep="end-level-read">50</span>
+          </label>
+        </div>
+
+        <div class="checkboxes">
+          <label class="checkbox">
+            <input type="checkbox" data-sweep="hold" />
+            <span>Hold the final tone after the sweep</span>
+          </label>
+          <label class="checkbox">
+            <input type="checkbox" data-sweep="loop" />
+            <span>Loop the sweep</span>
+          </label>
+        </div>
+
+        <div class="transport">
+          <button class="btn btn--primary btn--play" type="button" data-sweep="play" aria-pressed="false">
+            <span class="transport__glyph" aria-hidden="true">▶</span> Play
+          </button>
+          <button class="btn btn--stop" type="button" data-sweep="stop" aria-pressed="false" disabled>
+            <span class="transport__glyph" aria-hidden="true">■</span> Stop
+          </button>
+          <button class="btn" type="button" data-sweep="export">Save WAV</button>
+        </div>
+
+        <p class="status mono" data-sweep="status" role="status" aria-live="polite">
+          Ready. Press play to run the sweep.
+        </p>
+
+        <!-- Progress -->
+        <div class="progress" aria-hidden="false">
+          <div class="progress__row">
+            <span class="label">Elapsed</span>
+            <span class="mono progress__val" data-sweep="elapsed">0.00 s / 5.00 s</span>
+          </div>
+          <div class="progress__row">
+            <span class="label">Now playing</span>
+            <span class="mono progress__val progress__val--hz" data-sweep="current"> - Hz</span>
+          </div>
+          <div
+            class="progress__track"
+            role="progressbar"
+            aria-label="Sweep progress"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="0"
+            data-sweep="progressbar"
+          >
+            <div class="progress__bar" data-sweep="bar" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: analysis -->
+      <div class="stack">
+        <div class="scope scope--wave">
+          <span class="scope__tag">Oscilloscope · output</span>
+          <canvas data-scope="wave" />
+        </div>
+        <div class="scope scope--spec">
+          <span class="scope__tag">Spectrum · 0 – 20 kHz</span>
+          <canvas data-scope="spectrum" data-peak="true" />
+        </div>
+
+        <div class="notice notice--info">
+          <span class="notice__icon" aria-hidden="true">i</span>
+          <p class="notice__body">
+            Watch the spectrum peak travel left to right as the sweep runs. Sub-bass content (20–60 Hz) is only
+            audible on speakers that can reproduce it - headphones and small laptop speakers will roll it off.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================= Reference ========================= -->
+  <div class="two-col">
+    <Panel eyebrow="Reference" title="Typical sweep uses">
+      <table class="table-tech">
+        <thead>
+          <tr><th>Use</th><th>Range</th><th>What to look for</th></tr>
+        </thead>
+        <tbody>
+          {
+            sweepUses.map(([use, range, note]) => (
+              <tr>
+                <td>{use}</td>
+                <td class="mono">{range}</td>
+                <td>{note}</td>
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+    </Panel>
+
+    <Panel eyebrow="Reference" title="The maths of a logarithmic sweep">
+      <p>
+        In a linear sweep the frequency is <code>f(t) = f₀ + (f₁ − f₀)·t / T</code>: every second adds the same number
+        of hertz. In an exponential (logarithmic) sweep it is
+      </p>
+      <p class="formula mono">f(t) = f₀ · (f₁ / f₀)<sup>t / T</sup></p>
+      <p>
+        so the frequency climbs by the same <em>factor</em> in every equal slice of time. Taking the log base two, the
+        total span is <code>log₂(f₁ / f₀)</code> octaves and the sweep rate is
+      </p>
+      <p class="formula mono">R = log₂(f₁ / f₀) / T &nbsp;<span class="unit">octaves per second</span></p>
+      <p>
+        A 20 Hz → 20 kHz sweep covers <code>log₂(1000) ≈ 9.97</code> octaves; over 10 seconds that is about one octave
+        per second. Because the sweep passes through every octave for the same length of time, it carries equal energy
+        per octave, which is exactly what makes it the standard signal for room and speaker measurement.
+      </p>
+    </Panel>
+  </div>
+
+  <!-- =========================== FAQ =========================== -->
+  <Panel eyebrow="FAQ" title="Questions people actually ask">
+    <div class="faq">
+      {faqs.map((faq) => (
+        <details>
+          <summary>{faq.q}</summary>
+          <p>{faq.a}</p>
+        </details>
+      ))}
+    </div>
+  </Panel>
+
+  <!-- ====================== Related tools ====================== -->
+  <Panel eyebrow="More tools" title="Related generators and tests">
+    <div class="card-grid">
+      {
+        related.map((item) => (
+          <a class="card" href={item.href}>
+            <p class="card__t">{item.title}</p>
+            <p class="card__d">{item.tagline}</p>
+          </a>
+        ))
+      }
+    </div>
+  </Panel>
+
+  <script>
+    import '../scripts/sweep-generator';
+  </script>
+</Base>
+
+<style>
+  .hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(260px, 1fr);
+    gap: 20px;
+    align-items: start;
+    margin-bottom: 18px;
+  }
+  @media (max-width: 900px) {
+    .hero { grid-template-columns: minmax(0, 1fr); }
+  }
+  .hero h1 { font-size: clamp(1.6rem, 3.2vw, 2.1rem); margin: 6px 0 8px; }
+  .hero__lead { color: var(--color-ink-2); max-width: 68ch; margin: 0; font-size: 14.5px; }
+  .notice__body { margin: 0; }
+
+  .sweep__body {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    gap: 20px;
+  }
+  @media (max-width: 1000px) {
+    .sweep__body { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  .stack { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+  .field-row { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+
+  .hint { margin: 7px 0 0; font-size: 11.5px; color: var(--color-ink-4); line-height: 1.7; }
+
+  .level-pair {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 12px;
+  }
+  @media (max-width: 560px) {
+    .level-pair { grid-template-columns: minmax(0, 1fr); }
+  }
+  .voice-slider {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+  }
+  .voice-slider .slider { width: 100%; }
+  .voice-slider__val { font-size: 11.5px; color: var(--color-ink-3); min-width: 26px; text-align: right; }
+
+  .checkboxes { display: flex; flex-direction: column; gap: 8px; }
+  .checkbox { display: flex; align-items: center; gap: 9px; font-size: 13px; color: var(--color-ink-2); cursor: pointer; }
+  .checkbox input { width: 15px; height: 15px; accent-color: var(--color-signal); flex: none; }
+
+  .transport { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .transport__glyph { font-size: 9px; }
+
+  .status {
+    font-size: 11.5px;
+    color: var(--color-ink-3);
+    margin: 0;
+    min-height: 18px;
+  }
+  .status[data-kind='ok'] { color: var(--color-signal); }
+  .status[data-kind='error'] { color: var(--color-danger); }
+  .status[data-kind='warn'] { color: var(--color-warn); }
+
+  .progress {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 11px 12px;
+    background: var(--color-panel-2);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-sm);
+  }
+  .progress__row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .progress__val { font-size: 13px; color: var(--color-ink); }
+  .progress__val--hz { color: var(--color-signal); }
+  .progress__track {
+    position: relative;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--color-panel-3);
+    overflow: hidden;
+  }
+  .progress__bar {
+    width: 0%;
+    height: 100%;
+    background: var(--color-signal);
+    border-radius: 3px;
+    transition: width 60ms linear;
+  }
+
+  .two-col {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 14px;
+    margin-top: 14px;
+  }
+  @media (max-width: 1000px) {
+    .two-col { grid-template-columns: minmax(0, 1fr); }
+  }
+  .two-col :global(.panel + .panel) { margin-top: 0; }
+
+  .formula {
+    font-size: 14px;
+    color: var(--color-ink);
+    background: var(--color-panel-3);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-xs);
+    padding: 8px 12px;
+    display: block;
+  }
+  .formula .unit { color: var(--color-ink-4); font-size: 11.5px; }
+
+  .faq details { border-bottom: 1px solid var(--color-line); padding: 10px 0; }
+  .faq details:first-of-type { padding-top: 0; }
+  .faq summary {
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 13.5px;
+    list-style: none;
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+  }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary::before { content: "+"; font-family: var(--font-mono); color: var(--color-signal); flex: none; }
+  .faq details[open] summary::before { content: "−"; }
+  .faq details p { margin: 8px 0 0 18px; font-size: 13px; color: var(--color-ink-2); line-height: 1.65; }
+</style>

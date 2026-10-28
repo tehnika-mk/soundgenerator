@@ -1,0 +1,80 @@
+---
+import Base from '../layouts/Base.astro';
+import { TOOLS } from '../data/tools';
+
+const wanted = [
+  '/',
+  '/sweep-generator',
+  '/noise-generator',
+  '/instrument-tuning',
+  '/hearing-test',
+  '/binaural-beats',
+];
+
+const useful = wanted
+  .map((href) => TOOLS.find((t) => t.href === href))
+  .filter((t): t is NonNullable<typeof t> => Boolean(t));
+---
+
+<Base
+  title="Page not found"
+  description="The page you asked for does not exist. Try one of the sound generator tools below, or return to the home page."
+  noindex
+>
+  <div class="notfound">
+    <p class="label label--accent">Error 404</p>
+    <h1>Page not found</h1>
+    <p class="notfound__lead">
+      The page you asked for does not exist or has moved. Nothing is broken: pick a tool below or go back to the
+      <a href="/">tone generator</a>.
+    </p>
+  </div>
+
+  <section class="panel">
+    <header class="panel__head">
+      <span class="label">Try one of these</span>
+    </header>
+    <div class="panel__body">
+      <div class="card-grid">
+        {
+          useful.map((item) => (
+            <a class="card" href={item.href}>
+              <p class="card__t">{item.title}</p>
+              <p class="card__d">{item.tagline}</p>
+            </a>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <p class="hint">
+    Return to the <a href="/">home page</a>, or see the full list of tools on the
+    <a href="/about">about page</a>.
+  </p>
+</Base>
+
+<style>
+  .notfound {
+    margin-bottom: 20px;
+  }
+  .notfound h1 {
+    font-size: clamp(1.7rem, 3.4vw, 2.2rem);
+    margin: 6px 0 8px;
+  }
+  .notfound__lead {
+    color: var(--color-ink-2);
+    max-width: 62ch;
+    margin: 0;
+    font-size: 14.5px;
+  }
+  .notfound__lead a { color: var(--color-signal); text-decoration: underline; text-underline-offset: 2px; }
+
+  .hint {
+    margin: 14px 0 0;
+    font-size: 11.5px;
+    color: var(--color-ink-4);
+    line-height: 1.7;
+  }
+  .hint a { color: var(--color-signal); text-decoration: underline; text-underline-offset: 2px; }
+</style>

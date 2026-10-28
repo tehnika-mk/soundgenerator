@@ -1,0 +1,389 @@
+---
+import Base from '../layouts/Base.astro';
+import Panel from '../components/Panel.astro';
+import { TEMPO_TERMS, SUBDIVISIONS } from '../lib/tools/metronome';
+import { TOOLS } from '../data/tools';
+
+const tool = TOOLS.find((t) => t.href === '/metronome')!;
+
+const faqs = [
+  {
+    q: 'Why does a look-ahead scheduler sound steadier than setInterval?',
+    a: 'setInterval only promises that a callback runs somewhere in a timer window, and each callback lands a fraction late. If you play the click inside that callback, the errors pile up and the beat wanders. The fix is to separate timing from playback: a timer wakes up every 25 ms, but it only schedules clicks that are due in the next 100 ms and hands the exact start time to the Web Audio API. The audio clock is driven by the sound card and is sample-accurate, so the clicks land on the grid no matter how late the JavaScript is.',
+  },
+  {
+    q: 'What is tap tempo measuring?',
+    a: 'The average of the last four intervals between your taps, converted to BPM with 60000 ÷ interval. It uses the individual intervals rather than first-to-last so a single hesitant tap does not drag the average. Taps more than two seconds apart reset the window, so starting again after a pause does not mix old and new tempi.',
+  },
+  {
+    q: 'What does the click level do that the header level does not?',
+    a: 'The header slider sets the volume of everything leaving the site. Click level is a separate gain stage inside the metronome, so you can drop the metronome under a backing track or a recording you are practising with, without touching the master output. The click still obeys the header mute.',
+  },
+  {
+    q: 'Does the accent land on the first beat of the bar?',
+    a: 'Yes. Beat one of every bar is accented with a higher, slightly louder click; the other beats use a lower one. With a subdivision selected, the in-between clicks sit below the beats on their own pitch, so you can feel the pulse even at slow tempi where the subdivisions carry the motion.',
+  },
+];
+
+const tempoRows = TEMPO_TERMS;
+---
+
+<Base
+  title={tool.title}
+  description={tool.meta}
+  tool={tool}
+  keywords={tool.keywords}
+>
+  <!-- ============================ Hero ============================ -->
+  <div class="hero">
+    <div class="hero__text">
+      <p class="label label--accent">Music &amp; tuning · 20 – 300 BPM</p>
+      <h1>{tool.title}</h1>
+      <p class="hero__lead">
+        A steady, sample-accurate metronome from 20 to 300 BPM. Set the tempo by number, slider or tap, choose a time
+        signature and subdivision, and switch on one bar of count-in before you play. The beat is scheduled on the
+        Web Audio clock, not on a JavaScript timer, so it does not drift.
+      </p>
+    </div>
+    <div class="hero__aside">
+      <div class="notice">
+        <span class="notice__icon" aria-hidden="true">!</span>
+        <p class="notice__body">
+          Don’t practise with the click loud for long sessions. Set the header level so the click is clearly audible
+          but quieter than your instrument, and stop with <span class="kbd">Esc</span> at any time. Headphones at high
+          volume are the fastest way to damage your hearing.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================= Metronome ========================= -->
+  <section class="panel" id="metronome" aria-labelledby="metronome-heading">
+    <header class="panel__head">
+      <div class="flex items-center gap-2">
+        <span class="label" id="metronome-heading">Metronome</span>
+        <span class="badge badge--signal">Look-ahead scheduler</span>
+      </div>
+      <span class="mono badge" data-sr-badge>44.1 kHz clock</span>
+    </header>
+
+    <div class="panel__body metro__body">
+      <!-- Left: tempo + transport -->
+      <div class="stack">
+        <div class="bpm">
+          <div class="bpm__readout">
+            <span class="readout readout--big" data-bpm-readout>120</span>
+            <span class="bpm__unit mono">BPM</span>
+          </div>
+          <div class="bpm__meta">
+            <p class="bpm__term" data-tempo-name>Allegro</p>
+            <p class="hint" data-tempo-detail>Fast and bright</p>
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="label" for="bpm-number">Tempo (BPM)</label>
+          <div class="nudge">
+            <button class="btn btn--sm" type="button" data-bpm-step="-5">−5</button>
+            <button class="btn btn--sm" type="button" data-bpm-step="-1">−1</button>
+            <input
+              id="bpm-number"
+              class="input mono nudge__input"
+              type="number"
+              min="20"
+              max="300"
+              step="1"
+              value="120"
+              data-bpm-number
+            />
+            <button class="btn btn--sm" type="button" data-bpm-step="1">+1</button>
+            <button class="btn btn--sm" type="button" data-bpm-step="5">+5</button>
+            <span class="nudge__sep" aria-hidden="true"></span>
+            <button class="btn btn--ghost btn--sm" type="button" data-tap>Tap tempo</button>
+            <span class="mono tap-readout" data-tap-bpm> - </span>
+          </div>
+        </div>
+
+        <div class="slider-wrap">
+          <label class="visually-hidden" for="bpm-slider">Tempo slider</label>
+          <input
+            class="slider"
+            id="bpm-slider"
+            type="range"
+            min="20"
+            max="300"
+            step="1"
+            value="120"
+            data-bpm-slider
+          />
+          <div class="slider-scale mono">
+            <span>20</span><span>90</span><span>160</span><span>230</span><span>300</span>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="field field--grow">
+            <label class="label" for="numerator">Beats per bar</label>
+            <input
+              id="numerator"
+              class="input mono"
+              type="number"
+              min="1"
+              max="12"
+              step="1"
+              value="4"
+              data-numerator
+            />
+          </div>
+          <div class="field field--grow">
+            <label class="label" for="click-level">Click level</label>
+            <div class="level">
+              <input
+                class="slider"
+                id="click-level"
+                type="range"
+                min="0"
+                max="100"
+                step="1"
+                value="80"
+                data-click-level
+              />
+              <span class="mono level__v" data-click-level-readout>80%</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="field">
+          <span class="label" id="subdivision-label">Subdivision</span>
+          <div class="segmented" role="group" aria-labelledby="subdivision-label" data-subdivision>
+            {
+              SUBDIVISIONS.map((sub) => (
+                <button
+                  class="segmented__item"
+                  type="button"
+                  data-value={sub.id}
+                  aria-pressed={sub.id === 'quarter' ? 'true' : 'false'}
+                >
+                  {sub.label}
+                </button>
+              ))
+            }
+          </div>
+        </div>
+
+        <div class="transport">
+          <button class="btn btn--primary btn--play" type="button" data-play aria-pressed="false">
+            <span class="transport__glyph" aria-hidden="true">▶</span> Play
+          </button>
+          <button class="btn btn--stop" type="button" data-stop aria-pressed="false" disabled>
+            <span class="transport__glyph" aria-hidden="true">■</span> Stop
+          </button>
+          <label class="check">
+            <input type="checkbox" data-count-in />
+            <span>One bar count-in</span>
+          </label>
+        </div>
+
+        <p class="hint">
+          <span class="kbd">Space</span> play / stop · <span class="kbd">Esc</span> stop · tap tempo averages the last
+          four taps.
+        </p>
+
+        <p class="status mono" data-status role="status" aria-live="polite">Ready. Press play to start.</p>
+      </div>
+
+      <!-- Right: visual beat + scope -->
+      <div class="stack">
+        <div class="pulse" aria-hidden="true">
+          <div class="pulse__head">
+            <span class="label">Beat</span>
+            <span class="mono pulse__bar" data-bar>Bar 1</span>
+          </div>
+          <div class="beats" data-beats></div>
+        </div>
+
+        <div class="scope scope--wave">
+          <span class="scope__tag">Oscilloscope · click output</span>
+          <canvas data-scope="wave"></canvas>
+        </div>
+
+        <p class="hint">
+          The dots flash on each beat of the bar and the counter shows how many bars have passed. Both are decorative - 
+          nothing here is announced to screen readers.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================= Reference ========================= -->
+  <div class="two-col">
+    <Panel eyebrow="Reference" title="Tempo terms and their ranges">
+      <table class="table-tech">
+        <thead>
+          <tr><th>Term</th><th>BPM range</th><th>Character</th></tr>
+        </thead>
+        <tbody>
+          {
+            tempoRows.map((row) => (
+              <tr>
+                <td><strong>{row.name}</strong></td>
+                <td class="mono">
+                  {row.min}
+                  {row.min === row.max ? '' : ` – ${row.max}`}
+                </td>
+                <td>{row.detail}</td>
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+      <p class="hint">
+        The ranges are the ones in common use; they overlap in places between different editors, so a tempo near a
+        boundary can honestly carry either name.
+      </p>
+    </Panel>
+
+    <Panel eyebrow="FAQ" title="Questions people actually ask">
+      <div class="faq">
+        {
+          faqs.map((faq) => (
+            <details>
+              <summary>{faq.q}</summary>
+              <p>{faq.a}</p>
+            </details>
+          ))
+        }
+      </div>
+    </Panel>
+  </div>
+
+  <Panel eyebrow="Guide" title="Why the metronome uses a look-ahead scheduler">
+    <div class="prose-tech">
+      <h2>The problem with setInterval</h2>
+      <p>
+        A JavaScript timer does not fire on time. <code>setInterval(click, 500)</code> schedules the callback for
+        roughly 500 ms in the future, but the main thread may be busy with layout, garbage collection or an
+        audio buffer refill when the timer expires, so the callback runs a little late - and then the next interval is
+        scheduled from that late moment. The error accumulates, the beat drifts, and a metronome that wanders is worse
+        than none.
+      </p>
+      <h2>Separating timing from playback</h2>
+      <p>
+        The scheduler here looks ahead. A <code>setTimeout</code> loop wakes every 25 ms, and each time it looks at the
+        AudioContext clock and schedules every click that falls within the next 100 ms - handing the Web Audio API the
+        exact start time with <code>osc.start(when)</code>. The API plays each click at the sample it was told to, on
+        the sound card’s own clock, so the audible grid is exact even though the JavaScript that planned it was not.
+        Scheduling only 100 ms ahead keeps the clicks responsive to changes while leaving the main thread free for the
+        display.
+      </p>
+      <h2>What is scheduled</h2>
+      <p>
+        Each beat is divided by the subdivision - one click per beat for quarters, two for eighths, three for
+        triplets, four for sixteenths. Beat one of the bar is accented (a higher, slightly louder click), the other
+        beats use a lower click, and the subdivision clicks sit below both on their own pitch. The count-in schedules
+        four clicks of one bar before the pattern begins.
+      </p>
+    </div>
+  </Panel>
+
+  <script>
+    import '../scripts/metronome';
+  </script>
+</Base>
+
+<style>
+  .hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(260px, 1fr);
+    gap: 20px;
+    align-items: start;
+    margin-bottom: 18px;
+  }
+  @media (max-width: 900px) { .hero { grid-template-columns: minmax(0, 1fr); } }
+  .hero h1 { font-size: clamp(1.6rem, 3.2vw, 2.1rem); margin: 6px 0 8px; }
+  .hero__lead { color: var(--color-ink-2); max-width: 68ch; margin: 0; font-size: 14.5px; }
+  .notice__body { margin: 0; }
+
+  .metro__body { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 20px; }
+  @media (max-width: 1000px) { .metro__body { grid-template-columns: minmax(0, 1fr); } }
+
+  .stack { display: flex; flex-direction: column; gap: 14px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field--grow { flex: 1 1 150px; }
+
+  .bpm { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+  .bpm__readout { display: flex; align-items: baseline; gap: 8px; }
+  .bpm__unit { font-size: 13px; color: var(--color-ink-3); }
+  .bpm__meta { text-align: right; }
+  .bpm__term { font-size: 18px; font-weight: 600; color: var(--color-signal); margin: 0; }
+  .bpm__meta .hint { margin: 0; }
+
+  .nudge { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .nudge__input { width: 88px; text-align: center; }
+  .nudge__sep { width: 1px; height: 18px; background: var(--color-line); margin: 0 3px; }
+  .tap-readout { font-size: 12px; color: var(--color-ink-3); min-width: 58px; }
+
+  .slider-wrap { margin-top: 2px; }
+  .slider-scale { display: flex; justify-content: space-between; font-size: 10px; color: var(--color-ink-4); margin-top: -2px; }
+
+  .row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .level { display: flex; align-items: center; gap: 10px; }
+  .level .slider { flex: 1 1 auto; }
+  .level__v { font-size: 12px; color: var(--color-ink-3); min-width: 40px; text-align: right; }
+
+  .transport { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .transport__glyph { font-size: 9px; }
+  .check { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--color-ink-2); }
+  .check input { accent-color: var(--color-signal); }
+
+  .hint { margin: 7px 0 0; font-size: 11.5px; color: var(--color-ink-4); line-height: 1.7; }
+  .status { font-size: 11.5px; color: var(--color-ink-3); margin: 0; min-height: 18px; }
+  .status[data-kind='ok'] { color: var(--color-signal); }
+  .status[data-kind='error'] { color: var(--color-danger); }
+  .status[data-kind='warn'] { color: var(--color-warn); }
+
+  .pulse {
+    padding: 12px 14px;
+    background: var(--color-void);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-sm);
+  }
+  .pulse__head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 10px; }
+  .pulse__bar { font-size: 11.5px; color: var(--color-ink-3); }
+  .beats { display: flex; gap: 8px; flex-wrap: wrap; min-height: 30px; align-items: center; }
+  .beat {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--color-panel-3);
+    border: 1px solid var(--color-line-2);
+    transition: background 60ms linear, transform 60ms linear, border-color 60ms linear;
+  }
+  .beat[data-role='first'] { border-color: var(--color-line-3); }
+  .beat[data-active='true'] {
+    background: var(--color-signal);
+    border-color: var(--color-signal);
+    transform: scale(1.18);
+    box-shadow: 0 0 12px color-mix(in oklab, var(--color-signal) 60%, transparent);
+  }
+
+  .two-col { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; margin-top: 14px; }
+  @media (max-width: 1000px) { .two-col { grid-template-columns: minmax(0, 1fr); } }
+  .two-col :global(.panel + .panel) { margin-top: 0; }
+
+  .faq details { border-bottom: 1px solid var(--color-line); padding: 10px 0; }
+  .faq details:first-of-type { padding-top: 0; }
+  .faq summary {
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 13.5px;
+    list-style: none;
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+  }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary::before { content: '+'; font-family: var(--font-mono); color: var(--color-signal); flex: none; }
+  .faq details[open] summary::before { content: '−'; }
+  .faq details p { margin: 8px 0 0 18px; font-size: 13px; color: var(--color-ink-2); line-height: 1.65; }
+</style>

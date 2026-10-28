@@ -1,0 +1,325 @@
+---
+import Base from '../layouts/Base.astro';
+import Panel from '../components/Panel.astro';
+import { BINAURAL_BANDS } from '../lib/audio/notes';
+import { TOOLS } from '../data/tools';
+
+const tool = TOOLS.find((t) => t.href === '/binaural-beats')!;
+
+const related = TOOLS.filter((t) =>
+  ['/noise-generator', '/instrument-tuning', '/hearing-test', '/subwoofer-test'].includes(t.href),
+);
+
+const carrierPresets = [200, 440, 1000];
+
+const faqs = [
+  {
+    q: 'Do I need headphones?',
+    a: 'Yes. A binaural beat exists only when each ear receives its own steady frequency. With headphones, the left ear hears one carrier and the right ear another, and the brainstem derives the difference. Over loudspeakers both ears hear both tones mixed, which produces an ordinary amplitude beat - a slow pulsing of loudness in the room - rather than a binaural one. The two are not the same phenomenon.',
+  },
+  {
+    q: 'What does the carrier frequency change?',
+    a: 'The carrier sets the pitch you actually hear; the beat sets the difference between the ears. Most listeners find carriers between about 100 Hz and 500 Hz the most comfortable for beats, because low carriers make the beat easy to follow while high carriers (>1 kHz) can be piercing. The default 200 Hz is a reasonable middle ground.',
+  },
+  {
+    q: 'Do binaural beats change brainwaves or improve focus or sleep?',
+    a: 'The evidence is not well established. Small studies have reported changes in EEG at the beat frequency and modest effects on anxiety, attention or sleep, but results are inconsistent, samples are small and several attempts to reproduce the effects have failed. Treat binaural beats as a pleasant background tone, not a treatment. Anyone with epilepsy or a seizure history should be careful with rhythmic stimuli and consult a clinician.',
+  },
+  {
+    q: 'What do the delta, theta, alpha, beta and gamma labels mean?',
+    a: 'They are the conventional EEG bands, named by frequency: delta 0.5–4 Hz, theta 4–8 Hz, alpha 8–13 Hz, beta 13–30 Hz, gamma 30–50 Hz. The buttons set the beat to a representative frequency in each band. The label describes the beat rate, not a guaranteed effect on your brain - it is a naming convention borrowed from the EEG literature.',
+  },
+];
+---
+
+<Base
+  title={tool.title}
+  description={tool.meta}
+  tool={tool}
+  keywords={tool.keywords}
+>
+  <!-- ============================ Hero ============================ -->
+  <div class="hero">
+    <div class="hero__text">
+      <p class="label label--accent">Music &amp; tuning · two carriers, one per ear</p>
+      <h1>{tool.title}</h1>
+      <p class="hero__lead">
+        Two sine waves are generated at once and hard-panned - one strictly to the left ear, one to the right.
+        The difference between them is the beat frequency, from a slow delta throb to a fast gamma shimmer.
+        Set a carrier and a beat; the two ear frequencies are derived and shown exactly.
+      </p>
+    </div>
+    <div class="hero__aside">
+      <div class="notice notice--info">
+        <span class="notice__icon" aria-hidden="true">i</span>
+        <p class="notice__body">
+          Use headphones. Each ear must receive a different frequency for the beat to be binaural; through
+          stereo speakers you only get an ordinary loudness beat. Keep the level low - a steady two-tone
+          signal is easy to listen to for longer than is wise.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================= Generator ========================= -->
+  <section class="panel" id="binaural" aria-labelledby="bb-heading">
+    <header class="panel__head">
+      <div class="flex items-center gap-2">
+        <span class="label" id="bb-heading">Binaural beat generator</span>
+        <span class="badge">stereo · hard-panned</span>
+      </div>
+      <span class="badge badge--warn">headphones required</span>
+    </header>
+
+    <div class="panel__body bb-body">
+      <!-- Left column -->
+      <div class="stack">
+        <div class="field-row">
+          <div class="field">
+            <label class="label" for="bb-carrier">Carrier frequency (Hz)</label>
+            <input id="bb-carrier" class="input input--readout mono" type="number" min="20" max="20000" step="1" value="200" />
+          </div>
+          <div class="field">
+            <label class="label" for="bb-beat">Beat frequency (Hz)</label>
+            <input id="bb-beat" class="input input--readout mono" type="number" min="0.1" max="100" step="0.1" value="10" />
+          </div>
+        </div>
+
+        <div>
+          <span class="label" id="bb-band-label">Beat band</span>
+          <div class="segmented" role="group" aria-labelledby="bb-band-label">
+            {
+              BINAURAL_BANDS.map((band) => (
+                <button
+                  class="segmented__item"
+                  type="button"
+                  data-bb="band"
+                  data-hz={band.hz}
+                  aria-pressed={band.hz === 10 ? 'true' : 'false'}
+                  title={band.detail}
+                >
+                  {band.label}
+                </button>
+              ))
+            }
+          </div>
+          <p class="hint">Delta 0.5–4 · Theta 4–8 · Alpha 8–13 · Beta 13–30 · Gamma 30–50 Hz.</p>
+        </div>
+
+        <div>
+          <span class="label" id="bb-carrier-label">Carrier preset</span>
+          <div class="btn-group" role="group" aria-labelledby="bb-carrier-label">
+            {
+              carrierPresets.map((hz) => (
+                <button class="btn btn--sm" type="button" data-bb="carrier" data-hz={hz} aria-pressed={hz === 200 ? 'true' : 'false'}>
+                  {hz} Hz
+                </button>
+              ))
+            }
+          </div>
+        </div>
+
+        <div class="slider-wrap">
+          <label class="label" for="bb-level">Level</label>
+          <input id="bb-level" class="slider" type="range" min="0" max="100" step="1" value="55" />
+          <div class="slider-scale mono"><span>0</span><span>50</span><span>100</span></div>
+        </div>
+
+        <div class="transport">
+          <button class="btn btn--primary btn--play" type="button" data-bb="play" aria-pressed="false">
+            <span class="transport__glyph" aria-hidden="true">▶</span> Play
+          </button>
+          <button class="btn btn--stop" type="button" data-bb="stop" aria-pressed="false" disabled>
+            <span class="transport__glyph" aria-hidden="true">■</span> Stop
+          </button>
+          <div class="transport__export">
+            <button class="btn" type="button" data-bb="export">Save stereo WAV</button>
+            <label class="visually-hidden" for="bb-seconds">Clip length</label>
+            <select class="input input--compact mono" id="bb-seconds" data-bb="seconds">
+              <option value="10" selected>10 s</option>
+              <option value="30">30 s</option>
+            </select>
+          </div>
+        </div>
+
+        <p class="status mono" data-bb="status" role="status" aria-live="polite">
+          Ready. Press play with headphones on.
+        </p>
+      </div>
+
+      <!-- Right column -->
+      <div class="stack">
+        <div class="scope scope--wave">
+          <span class="scope__tag">Oscilloscope · merged output</span>
+          <canvas data-scope="wave"></canvas>
+        </div>
+        <div class="scope scope--spec">
+          <span class="scope__tag">Spectrum · both carriers</span>
+          <canvas data-scope="spectrum" data-peak="true"></canvas>
+        </div>
+
+        <div class="stat-grid">
+          <div class="stat"><p class="stat__k">Left ear</p><p class="stat__v" data-stat="left">195 Hz</p></div>
+          <div class="stat"><p class="stat__k">Right ear</p><p class="stat__v" data-stat="right">205 Hz</p></div>
+          <div class="stat"><p class="stat__k">Beat</p><p class="stat__v" data-stat="beat">10 Hz</p></div>
+          <div class="stat"><p class="stat__k">Band</p><p class="stat__v" data-stat="band">Alpha</p></div>
+          <div class="stat"><p class="stat__k">Carrier</p><p class="stat__v" data-stat="carrier">200 Hz</p></div>
+          <div class="stat"><p class="stat__k">Derivation</p><p class="stat__v" data-stat="stereo">L − beat/2 · R + beat/2</p></div>
+        </div>
+
+        <div class="notice notice--info">
+          <span class="notice__icon" aria-hidden="true">i</span>
+          <p class="notice__body">
+            Speaker playback sums both carriers into each ear, so what you hear is an <strong>amplitude beat</strong> - 
+            the loudness rising and falling - not a binaural beat. Only separated channels produce the neural
+            difference tone the technique relies on.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================= Reference ========================= -->
+  <div class="two-col">
+    <Panel eyebrow="Reference" title="Binaural beats and the EEG bands">
+      <div class="prose-tech">
+        <p>
+          A binaural beat is an auditory illusion. When each ear hears a pure tone and the two tones differ by
+          a few hertz, the brainstem's superior olivary complex responds to the <em>difference</em> between
+          them, and you perceive a slow rhythm at that difference frequency even though no sound is physically
+          present at it. The two ear frequencies here are derived so the difference is exactly the beat:
+        </p>
+        <p class="mono formula">left = carrier − beat/2 &nbsp;·&nbsp; right = carrier + beat/2</p>
+        <p>
+          The bands below are the conventional human EEG rhythms. Selecting one sets the beat to a
+          representative rate. The names describe the frequency, not a guaranteed effect.
+        </p>
+      </div>
+      <table class="table-tech">
+        <thead>
+          <tr><th>Band</th><th>Beat rate</th><th>Associated state (EEG literature)</th></tr>
+        </thead>
+        <tbody>
+          {
+            BINAURAL_BANDS.map((band) => (
+              <tr>
+                <td class="mono">{band.label}</td>
+                <td class="mono">{band.range}</td>
+                <td>{band.detail}</td>
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+      <p class="hint">
+        Keep the carrier above roughly 100 Hz and the beat modest (1–20 Hz) for comfortable listening. Very
+        high carriers become piercing; very fast beats blur into a roughness rather than a distinct pulse.
+      </p>
+    </Panel>
+
+    <Panel eyebrow="FAQ" title="Questions people actually ask">
+      <div class="faq">
+        {faqs.map((faq) => (
+          <details>
+            <summary>{faq.q}</summary>
+            <p>{faq.a}</p>
+          </details>
+        ))}
+      </div>
+    </Panel>
+  </div>
+
+  <!-- ===================== Related tools ===================== -->
+  <Panel eyebrow="More tools" title="Related generators and tests">
+    <div class="card-grid">
+      {related.map((item) => (
+        <a class="card" href={item.href}>
+          <p class="card__t">{item.title}</p>
+          <p class="card__d">{item.tagline}</p>
+        </a>
+      ))}
+    </div>
+  </Panel>
+
+  <script>
+    import '../scripts/binaural-beats';
+  </script>
+</Base>
+
+<style>
+  .hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(260px, 1fr);
+    gap: 20px;
+    align-items: start;
+    margin-bottom: 18px;
+  }
+  @media (max-width: 900px) {
+    .hero { grid-template-columns: minmax(0, 1fr); }
+  }
+  .hero h1 { font-size: clamp(1.6rem, 3.2vw, 2.1rem); margin: 6px 0 8px; }
+  .hero__lead { color: var(--color-ink-2); max-width: 68ch; margin: 0; font-size: 14.5px; }
+  .notice__body { margin: 0; }
+
+  .bb-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+    gap: 20px;
+  }
+  @media (max-width: 1000px) {
+    .bb-body { grid-template-columns: minmax(0, 1fr); }
+  }
+  .stack { display: flex; flex-direction: column; gap: 14px; }
+  .flex { display: flex; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field-row { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+
+  .slider-wrap { margin-top: 2px; }
+  .slider-scale {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--color-ink-4);
+    margin-top: -2px;
+  }
+
+  .transport { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding-top: 2px; }
+  .transport__glyph { font-size: 9px; }
+  .transport__export { display: flex; gap: 6px; align-items: center; }
+  .input--compact { min-height: 30px; padding: 3px 8px; font-size: 12px; width: auto; }
+
+  .status { font-size: 11.5px; color: var(--color-ink-3); margin: 0; min-height: 18px; }
+  .status[data-kind='ok'] { color: var(--color-signal); }
+  .status[data-kind='error'] { color: var(--color-danger); }
+  .status[data-kind='warn'] { color: var(--color-warn); }
+  .status[data-kind='idle'] { color: var(--color-ink-3); }
+
+  .hint { margin: 7px 0 0; font-size: 11.5px; color: var(--color-ink-4); line-height: 1.7; }
+  .formula { font-size: 13px; color: var(--color-ink); background: var(--color-panel-3); border: 1px solid var(--color-line); border-radius: var(--radius-sm); padding: 8px 12px; }
+
+  .two-col {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 14px;
+    margin-top: 14px;
+  }
+  @media (max-width: 1000px) {
+    .two-col { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  .faq details { border-bottom: 1px solid var(--color-line); padding: 10px 0; }
+  .faq details:first-of-type { padding-top: 0; }
+  .faq summary {
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 13.5px;
+    list-style: none;
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+  }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary::before { content: "+"; font-family: var(--font-mono); color: var(--color-signal); flex: none; }
+  .faq details[open] summary::before { content: "−"; }
+  .faq details p { margin: 8px 0 0 18px; font-size: 13px; color: var(--color-ink-2); line-height: 1.65; }
+</style>

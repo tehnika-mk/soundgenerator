@@ -1,0 +1,333 @@
+---
+import Base from '../layouts/Base.astro';
+import Panel from '../components/Panel.astro';
+import { TOOLS } from '../data/tools';
+
+const tool = TOOLS.find((t) => t.href === '/noise-generator')!;
+
+const related = TOOLS.filter((t) =>
+  ['/sweep-generator', '/binaural-beats', '/subwoofer-test', '/hearing-test'].includes(t.href),
+);
+
+const faqs = [
+  {
+    q: 'What actually separates white, pink and brown noise?',
+    a: 'Only the energy balance across the frequency range. White noise has equal energy in every hertz, so it sounds bright and hissy. Pink noise has equal energy in every octave - it falls about 3 dB per octave - and sounds subjectively flat. Brown (red) noise falls about 6 dB per octave, so it is dominated by deep, low rumble with almost no treble. All three are the same kind of random signal; only the spectrum differs.',
+  },
+  {
+    q: 'Which one should I use for sleep or privacy masking?',
+    a: 'Brown noise for sleep and for covering low-frequency distractions such as traffic or voices through a wall, because its energy sits where those sounds live. Pink noise is the usual choice when you want an even, less rumbling blanket of sound. White noise is the brightest and can be fatiguing over long periods; use it mainly for short masking or measurement.',
+  },
+  {
+    q: 'Why would I band-shape the noise?',
+    a: 'Filtering lets you match the noise to the job. A high-pass around 100–200 Hz removes rumble you cannot hear anyway and keeps the level low for privacy masking. A low-pass around 4–8 kHz removes the sharp hiss that makes long listening tiring. The low-pass and high-pass sliders are 12 dB/octave Biquad filters applied before the level control.',
+  },
+  {
+    q: 'Can I save the noise as a file?',
+    a: 'Yes. Save WAV renders the exact colour, level and filter settings you have chosen, offline in your browser, into a 16-bit PCM WAV at 44.1 kHz - 10 or 30 seconds long. Nothing is uploaded. Use it for a masking loop on a phone, a test rig or any device that will not run Web Audio.',
+  },
+];
+---
+
+<Base
+  title={tool.title}
+  description={tool.meta}
+  tool={tool}
+  keywords={tool.keywords}
+>
+  <!-- ============================ Hero ============================ -->
+  <div class="hero">
+    <div class="hero__text">
+      <p class="label label--accent">Generators · white / pink / brown</p>
+      <h1>{tool.title}</h1>
+      <p class="hero__lead">
+        Generate white, pink or brown noise with an independent level control and optional low-pass and
+        high-pass band shaping. There is no file to load and nothing is uploaded - the noise is synthesised
+        live by the Web Audio API, one colour at a time, and stops the instant you press stop.
+      </p>
+    </div>
+    <div class="hero__aside">
+      <div class="notice">
+        <span class="notice__icon" aria-hidden="true">!</span>
+        <p class="notice__body">
+          Noise at high volume is as damaging to hearing as a pure tone and it is easy to leave running.
+          Start with the header level low and set a timer; do not use it to mask tinnitus at a level that
+          makes your ears ring.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================= Generator ======================= -->
+  <section class="panel" id="noise" aria-labelledby="noise-heading">
+    <header class="panel__head">
+      <div class="flex items-center gap-2">
+        <span class="label" id="noise-heading">Noise generator</span>
+        <span class="badge">Web Audio</span>
+      </div>
+      <span class="badge badge--signal">one colour at a time</span>
+    </header>
+
+    <div class="panel__body ng-body">
+      <!-- Left column -->
+      <div class="stack">
+        <div>
+          <span class="label" id="ng-color-label">Noise colour</span>
+          <div class="segmented" role="group" aria-labelledby="ng-color-label">
+            <button class="segmented__item" type="button" data-ng="color" data-value="white" aria-pressed="true"
+              >White</button
+            >
+            <button class="segmented__item" type="button" data-ng="color" data-value="pink" aria-pressed="false"
+              >Pink</button
+            >
+            <button class="segmented__item" type="button" data-ng="color" data-value="brown" aria-pressed="false"
+              >Brown</button
+            >
+          </div>
+        </div>
+
+        <div class="slider-wrap">
+          <label class="label" for="ng-level">Level <span class="mono" data-stat="level"> - </span></label>
+          <input id="ng-level" class="slider" type="range" min="0" max="100" step="1" value="60" />
+          <div class="slider-scale mono"><span>0</span><span>50</span><span>100</span></div>
+        </div>
+
+        <fieldset class="band">
+          <legend class="label">Band shaping (12 dB/octave filters)</legend>
+
+          <div class="band__row">
+            <label class="band__toggle">
+              <input id="ng-lp-on" type="checkbox" />
+              <span>Low-pass</span>
+            </label>
+            <label class="visually-hidden" for="ng-lp-hz">Low-pass cutoff frequency</label>
+            <input id="ng-lp-hz" class="slider" type="range" min="0" max="1000" step="1" value="892" disabled aria-describedby="ng-lp-value" />
+            <span class="mono band__val" id="ng-lp-value" data-stat="lowpass">open</span>
+          </div>
+
+          <div class="band__row">
+            <label class="band__toggle">
+              <input id="ng-hp-on" type="checkbox" />
+              <span>High-pass</span>
+            </label>
+            <label class="visually-hidden" for="ng-hp-hz">High-pass cutoff frequency</label>
+            <input id="ng-hp-hz" class="slider" type="range" min="0" max="1000" step="1" value="310" disabled aria-describedby="ng-hp-value" />
+            <span class="mono band__val" id="ng-hp-value" data-stat="highpass">open</span>
+          </div>
+          <div class="slider-scale mono band__scale">
+            <span>20 Hz</span><span>200</span><span>2 k</span><span>20 kHz</span>
+          </div>
+        </fieldset>
+
+        <div class="transport">
+          <button class="btn btn--primary btn--play" type="button" data-ng="play" aria-pressed="false">
+            <span class="transport__glyph" aria-hidden="true">▶</span> Play
+          </button>
+          <button class="btn btn--stop" type="button" data-ng="stop" aria-pressed="false" disabled>
+            <span class="transport__glyph" aria-hidden="true">■</span> Stop
+          </button>
+          <div class="transport__export">
+            <button class="btn" type="button" data-ng="export">Save WAV</button>
+            <label class="visually-hidden" for="ng-seconds">Clip length</label>
+            <select class="input input--compact mono" id="ng-seconds" data-ng="seconds">
+              <option value="10" selected>10 s</option>
+              <option value="30">30 s</option>
+            </select>
+          </div>
+        </div>
+
+        <p class="status mono" data-ng="status" role="status" aria-live="polite">
+          Ready. Choose a colour and press play.
+        </p>
+      </div>
+
+      <!-- Right column -->
+      <div class="stack">
+        <div class="scope scope--wave">
+          <span class="scope__tag">Oscilloscope · output</span>
+          <canvas data-scope="wave"></canvas>
+        </div>
+        <div class="scope scope--spec">
+          <span class="scope__tag">Spectrum · 0 – 20 kHz</span>
+          <canvas data-scope="spectrum" data-peak="true"></canvas>
+        </div>
+
+        <div class="stat-grid">
+          <div class="stat"><p class="stat__k">Colour</p><p class="stat__v" data-stat="color">White noise</p></div>
+          <div class="stat"><p class="stat__k">Sample rate</p><p class="stat__v" data-stat="rate"> - </p></div>
+          <div class="stat"><p class="stat__k">Level</p><p class="stat__v" data-stat="level"> - </p></div>
+          <div class="stat"><p class="stat__k">Low-pass</p><p class="stat__v" data-stat="lowpass">open</p></div>
+          <div class="stat"><p class="stat__k">High-pass</p><p class="stat__v" data-stat="highpass">open</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================= Reference ========================= -->
+  <div class="two-col">
+    <Panel eyebrow="Reference" title="The three noise colours">
+      <table class="table-tech">
+        <thead>
+          <tr><th>Type</th><th>Slope</th><th>Character &amp; typical use</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="mono">White</td>
+            <td class="mono">0 dB/oct</td>
+            <td>Equal energy per hertz, flat spectrum. Bright hiss. Speaker and room measurement, dithering, masking the highs.</td>
+          </tr>
+          <tr>
+            <td class="mono">Pink</td>
+            <td class="mono">−3 dB/oct</td>
+            <td>Equal energy per octave, subjectively flat. The standard for loudspeaker and room calibration and for even masking.</td>
+          </tr>
+          <tr>
+            <td class="mono">Brown</td>
+            <td class="mono">−6 dB/oct</td>
+            <td>Deep low rumble, little treble. Sleep masking, tinnitus relief, low-frequency and subwoofer testing.</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="hint">
+        White noise is flat per hertz; each octave upwards contains twice as many hertz, so it carries twice
+        the energy - that is why it sounds hissy. Pink noise halves the energy per octave to compensate and
+        sounds even; brown noise halves it again, giving 6 dB of roll-off per octave. The spectrum display
+        above shows the slope directly.
+      </p>
+    </Panel>
+
+    <Panel eyebrow="FAQ" title="Questions people actually ask">
+      <div class="faq">
+        {faqs.map((faq) => (
+          <details>
+            <summary>{faq.q}</summary>
+            <p>{faq.a}</p>
+          </details>
+        ))}
+      </div>
+    </Panel>
+  </div>
+
+  <!-- ===================== Related tools ===================== -->
+  <Panel eyebrow="More tools" title="Related generators and tests">
+    <div class="card-grid">
+      {related.map((item) => (
+        <a class="card" href={item.href}>
+          <p class="card__t">{item.title}</p>
+          <p class="card__d">{item.tagline}</p>
+        </a>
+      ))}
+    </div>
+  </Panel>
+
+  <script>
+    import '../scripts/noise-generator';
+  </script>
+</Base>
+
+<style>
+  .hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(260px, 1fr);
+    gap: 20px;
+    align-items: start;
+    margin-bottom: 18px;
+  }
+  @media (max-width: 900px) {
+    .hero { grid-template-columns: minmax(0, 1fr); }
+  }
+  .hero h1 { font-size: clamp(1.6rem, 3.2vw, 2.1rem); margin: 6px 0 8px; }
+  .hero__lead { color: var(--color-ink-2); max-width: 68ch; margin: 0; font-size: 14.5px; }
+  .notice__body { margin: 0; }
+
+  .ng-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+    gap: 20px;
+  }
+  @media (max-width: 1000px) {
+    .ng-body { grid-template-columns: minmax(0, 1fr); }
+  }
+  .stack { display: flex; flex-direction: column; gap: 14px; }
+  .flex { display: flex; }
+
+  .slider-wrap { margin-top: 2px; }
+  .slider-scale {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--color-ink-4);
+    margin-top: -2px;
+  }
+
+  .band {
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px 12px;
+    margin: 0;
+  }
+  .band__row {
+    display: grid;
+    grid-template-columns: 118px minmax(0, 1fr) 68px;
+    align-items: center;
+    gap: 10px;
+    margin-top: 8px;
+  }
+  @media (max-width: 460px) {
+    .band__row { grid-template-columns: minmax(0, 1fr); }
+  }
+  .band__toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12.5px;
+    color: var(--color-ink-2);
+  }
+  .band__toggle input { accent-color: var(--color-signal); width: 15px; height: 15px; }
+  .band__val { font-size: 11.5px; color: var(--color-ink-3); text-align: right; }
+  .band__scale { margin-top: 4px; }
+
+  .transport { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding-top: 2px; }
+  .transport__glyph { font-size: 9px; }
+  .transport__export { display: flex; gap: 6px; align-items: center; }
+  .input--compact {
+    min-height: 30px;
+    padding: 3px 8px;
+    font-size: 12px;
+    width: auto;
+  }
+
+  .status { font-size: 11.5px; color: var(--color-ink-3); margin: 0; min-height: 18px; }
+  .status[data-kind='ok'] { color: var(--color-signal); }
+  .status[data-kind='error'] { color: var(--color-danger); }
+  .status[data-kind='warn'] { color: var(--color-warn); }
+  .status[data-kind='idle'] { color: var(--color-ink-3); }
+
+  .hint { margin: 8px 0 0; font-size: 11.5px; color: var(--color-ink-4); line-height: 1.7; }
+
+  .two-col {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 14px;
+    margin-top: 14px;
+  }
+  @media (max-width: 1000px) {
+    .two-col { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  .faq details { border-bottom: 1px solid var(--color-line); padding: 10px 0; }
+  .faq details:first-of-type { padding-top: 0; }
+  .faq summary {
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 13.5px;
+    list-style: none;
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+  }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary::before { content: "+"; font-family: var(--font-mono); color: var(--color-signal); flex: none; }
+  .faq details[open] summary::before { content: "−"; }
+  .faq details p { margin: 8px 0 0 18px; font-size: 13px; color: var(--color-ink-2); line-height: 1.65; }
+</style>

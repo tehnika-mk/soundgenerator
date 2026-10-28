@@ -1,0 +1,307 @@
+---
+import Base from '../layouts/Base.astro';
+import Panel from '../components/Panel.astro';
+import { INSTRUMENTS, A4_REFERENCE_PRESETS, midiToFreq, roundTo } from '../lib/audio/notes';
+import { TOOLS } from '../data/tools';
+
+const tool = TOOLS.find((t) => t.href === '/instrument-tuning')!;
+
+const faqs = [
+  {
+    q: 'Should I tune by ear to the tone until the beats disappear?',
+    a: 'Yes, that is the point of a tuning tone. Sound the reference pitch and play the string; when the two are close but not equal you will hear a slow throb (a beat) at the difference frequency. Tune until the throb slows and stops. At 440 Hz against a string 1 Hz off, the beat is 1 per second - easy to hear; when it drops below about 0.5 Hz you are within roughly 2 cents and effectively in tune.',
+  },
+  {
+    q: 'Why do the numbers change when I switch the reference pitch?',
+    a: 'Because every displayed frequency is derived from A4 with equal temperament: f = A4·2^((n−69)/12). Choosing A4 = 432 instead of 440 lowers every string by the same ratio (about −31.7 cents), so a guitar low E reads 82.41 Hz at 440 and 80.91 Hz at 432. Nothing here is hand-typed - pick a reference and the whole table is recomputed.',
+  },
+  {
+    q: 'Can I hear a tuning tone through laptop speakers?',
+    a: 'For the upper strings, yes. For the low strings - bass guitar, double bass, the low E of a guitar - laptop speakers roll off hard below about 150 Hz, so you will hear the harmonics and not the fundamental. Use headphones or a speaker with real low-frequency output when tuning anything below around E3 (165 Hz).',
+  },
+  {
+    q: 'Does a sine wave make a good tuning reference?',
+    a: 'It is the cleanest one, because a pure sine has no harmonics to confuse you - the only thing you hear is the fundamental, so the beat you tune against is unambiguous. Some tuners add a little second harmonic so the pitch is easier to hear on small speakers; this generator stays pure, which is the honest reference.',
+  },
+];
+
+const tunings = INSTRUMENTS.map((inst) => ({
+  name: inst.name,
+  labels: inst.strings.map((s) => s.label).join(' · '),
+  midis: inst.strings.map((s) => s.midi).join(','),
+  freqs440: inst.strings.map((s) => roundTo(midiToFreq(s.midi, 440), 2).toFixed(2)).join(' · '),
+}));
+---
+
+<Base
+  title={tool.title}
+  description={tool.meta}
+  tool={tool}
+  keywords={tool.keywords}
+>
+  <!-- ============================ Hero ============================ -->
+  <div class="hero">
+    <div class="hero__text">
+      <p class="label label--accent">Music &amp; tuning · reference pitches</p>
+      <h1>{tool.title}</h1>
+      <p class="hero__lead">
+        Accurate reference tones for guitar, bass, ukulele, violin, viola, cello, double bass, mandolin and banjo.
+        Pick an instrument, then press and hold a string to hear its exact equal-tempered pitch - or latch one with a
+        click and tune hands-free. Every frequency is derived from the reference pitch you choose, and each string can
+        be saved as a WAV file.
+      </p>
+    </div>
+    <div class="hero__aside">
+      <div class="notice">
+        <span class="notice__icon" aria-hidden="true">!</span>
+        <p class="notice__body">
+          Set the header level low before you start, then raise it until the tone is comfortable. A sustained sine at
+          high volume is fatiguing quickly, and low strings played loud can damage small speakers. Use headphones for
+          anything below 150 Hz so you actually hear the fundamental.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================== Tuning rig ========================= -->
+  <section class="panel" id="tuning" aria-labelledby="tuning-heading">
+    <header class="panel__head">
+      <div class="flex items-center gap-2">
+        <span class="label" id="tuning-heading">Tuning rig</span>
+        <span class="badge badge--signal">Web Audio</span>
+      </div>
+      <span class="mono badge" data-sr-badge> - </span>
+    </header>
+
+    <div class="panel__body tuner__body">
+      <!-- Left: controls -->
+      <div class="stack">
+        <div class="field">
+          <label class="label" for="instrument">Instrument</label>
+          <select id="instrument" class="input mono" data-instrument>
+            {
+              INSTRUMENTS.map((inst, index) => (
+                <option value={inst.id} selected={index === 0}>{inst.name}</option>
+              ))
+            }
+          </select>
+        </div>
+
+        <div class="field">
+          <span class="label" id="ref-label">Reference pitch (A4)</span>
+          <div class="segmented" role="group" aria-labelledby="ref-label" data-reference>
+            {
+              A4_REFERENCE_PRESETS.map((preset, index) => (
+                <button
+                  class="segmented__item mono"
+                  type="button"
+                  data-a4={preset.hz}
+                  aria-pressed={index === 0 ? 'true' : 'false'}
+                  title={preset.detail}
+                >
+                  {preset.hz}
+                </button>
+              ))
+            }
+          </div>
+          <p class="hint" data-ref-detail>Standard concert pitch (ISO 16).</p>
+        </div>
+
+        <div class="row-between">
+          <span class="label">Strings · low → high</span>
+          <button class="btn btn--ghost btn--sm" type="button" data-hold aria-pressed="false">Hold (latch) : off</button>
+        </div>
+        <p class="hint">
+          Press and hold a string to sound it and release to stop. Switch on <strong>Hold (latch)</strong> to keep a
+          string sounding with a single click and stop it with another - useful when you need both hands for the
+          instrument. Each string has a save button that renders a 10-second WAV.
+        </p>
+
+        <div class="strings" role="group" aria-label="Strings" data-strings></div>
+
+        <div class="cycle">
+          <label class="field field--inline">
+            <span class="label">Auto cycle</span>
+            <span class="field__input">
+              <input
+                class="input mono cycle__seconds"
+                type="number"
+                min="1"
+                max="30"
+                step="1"
+                value="4"
+                data-cycle-seconds
+                aria-label="Seconds per string in auto cycle"
+              />
+              <span class="mono cycle__unit">s / string</span>
+            </span>
+          </label>
+          <button class="btn btn--primary" type="button" data-cycle aria-pressed="false">Start cycle</button>
+        </div>
+
+        <p class="status mono" data-status role="status" aria-live="polite">Ready. Select a string to sound it.</p>
+      </div>
+
+      <!-- Right: analysis -->
+      <div class="stack">
+        <div class="scope scope--wave">
+          <span class="scope__tag">Oscilloscope · output</span>
+          <canvas data-scope="wave"></canvas>
+        </div>
+
+        <div class="stat-grid">
+          <div class="stat"><p class="stat__k">Reference</p><p class="stat__v" data-stat="ref">A4 = 440 Hz</p></div>
+          <div class="stat"><p class="stat__k">Strings</p><p class="stat__v" data-stat="count">6</p></div>
+          <div class="stat"><p class="stat__k">Lowest</p><p class="stat__v" data-stat="low">E2 · 82.41 Hz</p></div>
+          <div class="stat"><p class="stat__k">Highest</p><p class="stat__v" data-stat="high">E4 · 329.63 Hz</p></div>
+        </div>
+
+        <p class="hint">
+          Every value shown is equal-tempered against the selected reference. The deviation between the common
+          references: 432 Hz is <span class="mono">−31.8 ¢</span> from 440, 435 Hz is <span class="mono">−19.8 ¢</span>,
+          415 Hz is <span class="mono">−101.3 ¢</span> (almost a semitone down).
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================= Reference ========================= -->
+  <div class="two-col">
+    <Panel eyebrow="Reference" title="Every tuning, every string">
+      <p class="hint">
+        Frequencies are equal-tempered against A4 = <span class="mono" data-ref-readout>440</span> Hz and are recomputed
+        live when you change the reference pitch above.
+      </p>
+      <div class="table-scroll">
+        <table class="table-tech">
+          <thead>
+            <tr>
+              <th>Instrument</th>
+              <th>Strings (low → high)</th>
+              <th>Frequencies (Hz, A4 = <span data-ref-readout>440</span>)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {
+              tunings.map((row) => (
+                <tr>
+                  <th scope="row">{row.name}</th>
+                  <td class="mono">{row.labels}</td>
+                  <td class="mono" data-midis={row.midis}>{row.freqs440}</td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+    </Panel>
+
+    <Panel eyebrow="FAQ" title="Questions people actually ask">
+      <div class="faq">
+        {
+          faqs.map((faq) => (
+            <details>
+              <summary>{faq.q}</summary>
+              <p>{faq.a}</p>
+            </details>
+          ))
+        }
+      </div>
+    </Panel>
+  </div>
+
+  <script>
+    import '../scripts/instrument-tuning';
+  </script>
+</Base>
+
+<style>
+  .hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(260px, 1fr);
+    gap: 20px;
+    align-items: start;
+    margin-bottom: 18px;
+  }
+  @media (max-width: 900px) {
+    .hero { grid-template-columns: minmax(0, 1fr); }
+  }
+  .hero h1 { font-size: clamp(1.6rem, 3.2vw, 2.1rem); margin: 6px 0 8px; }
+  .hero__lead { color: var(--color-ink-2); max-width: 68ch; margin: 0; font-size: 14.5px; }
+  .notice__body { margin: 0; }
+
+  .tuner__body { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 20px; }
+  @media (max-width: 1000px) { .tuner__body { grid-template-columns: minmax(0, 1fr); } }
+
+  .stack { display: flex; flex-direction: column; gap: 14px; }
+
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field--inline { flex-direction: row; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .field__input { display: inline-flex; align-items: center; gap: 7px; }
+  .cycle__seconds { width: 74px; }
+
+  .row-between { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+
+  .hint { margin: 7px 0 0; font-size: 11.5px; color: var(--color-ink-4); line-height: 1.7; }
+
+  .strings { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+  .string { display: flex; gap: 4px; }
+  .string__btn {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    padding: 9px 11px;
+    background: var(--color-panel-2);
+    border: 1px solid var(--color-line-2);
+    border-radius: var(--radius-sm);
+    color: var(--color-ink);
+    cursor: pointer;
+    text-align: left;
+  }
+  .string__btn:hover { border-color: var(--color-line-3); }
+  .string__btn[aria-pressed='true'] {
+    background: var(--color-signal);
+    border-color: var(--color-signal);
+    color: #04231b;
+  }
+  .string__note { font-family: var(--font-mono); font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+  .string__hz { font-size: 11px; color: var(--color-ink-3); }
+  .string__btn[aria-pressed='true'] .string__hz { color: #04231b; }
+  .string__dl {
+    flex: none;
+    min-width: 30px;
+    padding: 0 6px;
+  }
+
+  .cycle { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+  .status { font-size: 11.5px; color: var(--color-ink-3); margin: 0; min-height: 18px; }
+  .status[data-kind='ok'] { color: var(--color-signal); }
+  .status[data-kind='error'] { color: var(--color-danger); }
+  .status[data-kind='warn'] { color: var(--color-warn); }
+
+  .table-scroll { overflow-x: auto; }
+  .table-scroll table { min-width: 460px; }
+
+  .two-col { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; margin-top: 14px; }
+  @media (max-width: 1000px) { .two-col { grid-template-columns: minmax(0, 1fr); } }
+  .two-col :global(.panel + .panel) { margin-top: 0; }
+
+  .faq details { border-bottom: 1px solid var(--color-line); padding: 10px 0; }
+  .faq details:first-of-type { padding-top: 0; }
+  .faq summary {
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 13.5px;
+    list-style: none;
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+  }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary::before { content: '+'; font-family: var(--font-mono); color: var(--color-signal); flex: none; }
+  .faq details[open] summary::before { content: '−'; }
+  .faq details p { margin: 8px 0 0 18px; font-size: 13px; color: var(--color-ink-2); line-height: 1.65; }
+</style>

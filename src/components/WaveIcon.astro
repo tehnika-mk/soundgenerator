@@ -1,0 +1,40 @@
+---
+export type WaveformName = 'sine' | 'square' | 'sawtooth' | 'triangle';
+
+interface Props {
+  waveform?: WaveformName;
+  size?: number;
+  class?: string;
+}
+
+const { waveform = 'sine', size = 22, class: className = '' } = Astro.props;
+
+// One period of each waveform, normalised into a 0..22 viewbox.
+const paths: Record<WaveformName, string> = {
+  // 22 x 12 box, baseline at y = 6
+  sine: 'M0,6 C2.75,0 8.25,0 11,6 C13.75,12 19.25,12 22,6',
+  square: 'M0,12 L0,0 L11,0 L11,12 L22,12 L22,0',
+  sawtooth: 'M0,12 L11,0 L11,12 L22,0',
+  triangle: 'M0,6 L5.5,0 L16.5,12 L22,6',
+};
+---
+
+<svg
+  class={`wave-icon ${className}`}
+  width={size}
+  height={Math.round((size / 22) * 12)}
+  viewBox="0 0 22 12"
+  fill="none"
+  aria-hidden="true"
+  focusable="false"
+>
+  <path d={paths[waveform]} stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+</svg>
+
+<style>
+  .wave-icon {
+    display: block;
+    flex: none;
+    overflow: visible;
+  }
+</style>

@@ -1,0 +1,475 @@
+---
+import Base from '../layouts/Base.astro';
+import Panel from '../components/Panel.astro';
+import { TOOLS } from '../data/tools';
+
+const tool = TOOLS.find((t) => t.href === '/pitch-shifter')!;
+
+const related = TOOLS.filter((t) =>
+  ['/time-stretcher', '/voice-recorder', '/voice-generator', '/instrument-tuning'].includes(t.href),
+);
+
+const semitoneRows = [
+  [-24, '0.2500', 'Two octaves down - an octave below a baritone voice.'],
+  [-12, '0.5000', 'One octave down. The cleanest, most musical shift.'],
+  [-7, '0.6674', 'A perfect fifth down.'],
+  [-5, '0.7492', 'A perfect fourth down.'],
+  [-4, '0.7937', 'A major third down.'],
+  [-3, '0.8409', 'A minor third down.'],
+  [-2, '0.8909', 'A whole tone down.'],
+  [-1, '0.9439', 'A semitone down - used to detune a doubled take.'],
+  [0, '1.0000', 'No change.'],
+  [1, '1.0595', 'A semitone up.'],
+  [2, '1.1225', 'A whole tone up.'],
+  [3, '1.1892', 'A minor third up.'],
+  [4, '1.2599', 'A major third up.'],
+  [5, '1.3348', 'A perfect fourth up.'],
+  [7, '1.4983', 'A perfect fifth up.'],
+  [12, '2.0000', 'One octave up. Doubles every frequency - 440 Hz becomes 880 Hz.'],
+  [24, '4.0000', 'Two octaves up - the top of the range.'],
+] as const;
+
+const faqs = [
+  {
+    q: 'Does shifting the pitch change how long the clip is?',
+    a: 'Only if you let it. With Maintain tempo on, the tool resynthesises the audio so the length is untouched - a 30-second clip stays 30 seconds and only the pitch moves. With it off, the clip is resampled like a tape played faster or slower: a +12 semitone shift halves the length. The panel shows the resulting duration for whichever mode is active before you play or export.',
+  },
+  {
+    q: 'Why does a heavily shifted file sound metallic or smeared?',
+    a: 'This is the overlap-add method doing its job. The algorithm rebuilds the signal from short, Hann-windowed frames of the original, splicing new frames in where it needs more or less material. On sustained tones that is inaudible, but on transients - drum hits, plosives, pick attacks - a frame carries a copy of an attack that no longer lines up, which is heard as a metallic smear or a stutter. It is worst at the extremes, ±24 semitones, and mildest at ±1 to ±3.',
+  },
+  {
+    q: 'Is my audio uploaded anywhere?',
+    a: 'No. The file is decoded and processed entirely in your browser with the Web Audio API. There is no server, no upload step and no network request for your audio. You can open the page, load a file and export the result with the network disconnected.',
+  },
+  {
+    q: 'What file formats and sizes can I use?',
+    a: 'Anything your browser can decode - normally MP3, WAV, OGG/Vorbis, FLAC, M4A/AAC and Opus. The panel reports the decoded sample rate and channel count. Very long files work, but exporting a multi-minute WAV takes proportionally longer and produces a large file, so keep exports in the seconds-to-a-few-minutes range.',
+  },
+];
+---
+
+<Base
+  title={tool.title}
+  description={tool.meta}
+  tool={tool}
+  keywords={tool.keywords}
+>
+  <!-- ============================ Hero ============================ -->
+  <div class="hero">
+    <div class="hero__text">
+      <p class="label label--accent">Voice &amp; files · semitones −24 … +24</p>
+      <h1>{tool.title}</h1>
+      <p class="hero__lead">
+        Load an audio file and move its pitch by up to two octaves in either direction. With <em>Maintain tempo</em> on,
+        the clip is resynthesised with an overlap-add algorithm so the duration does not change; with it off, the file is
+        simply resampled like a tape at the wrong speed. Preview it in the browser, scrub it, and export a 16-bit WAV.
+      </p>
+    </div>
+    <div class="hero__aside">
+      <div class="notice">
+        <span class="notice__icon" aria-hidden="true">!</span>
+        <p class="notice__body">
+          Your file never leaves this device - it is decoded and processed locally by the Web Audio API. Be careful with
+          large shifts: the resynthesis smears transients (drum hits, consonants) into a metallic artefact, and the
+          exported WAV keeps that artefact. Watch the header level before playing or exporting.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================== Tool ========================== -->
+  <section class="panel ps" id="pitch-shifter" aria-labelledby="ps-heading">
+    <header class="panel__head">
+      <div class="flex items-center gap-2 min-w-0">
+        <span class="label" id="ps-heading">Pitch shifter</span>
+        <span class="badge">WSOLA · Web Audio</span>
+      </div>
+      <span class="badge" data-ps="engine-badge">idle</span>
+    </header>
+
+    <div class="panel__body ps__body">
+      <!-- Left: source -->
+      <div class="stack">
+        <label class="drop" id="ps-drop" for="ps-file">
+          <input class="visually-hidden" id="ps-file" type="file" accept="audio/*" data-ps="file" />
+          <span class="drop__glyph" aria-hidden="true">♪</span>
+          <span class="drop__title">Choose an audio file, or drop one here</span>
+          <span class="drop__hint mono">MP3 · WAV · OGG · FLAC · M4A · Opus - decoded locally, never uploaded</span>
+        </label>
+
+        <div class="stat-grid">
+          <div class="stat"><p class="stat__k">File</p><p class="stat__v" data-ps="name"> - </p></div>
+          <div class="stat"><p class="stat__k">Duration</p><p class="stat__v" data-ps="duration"> - </p></div>
+          <div class="stat"><p class="stat__k">Sample rate</p><p class="stat__v" data-ps="rate"> - </p></div>
+          <div class="stat"><p class="stat__k">Channels</p><p class="stat__v" data-ps="channels"> - </p></div>
+        </div>
+
+        <div class="scope ps-scope">
+          <span class="scope__tag">Waveform · click or drag to seek</span>
+          <canvas id="ps-wave" data-ps="wave"></canvas>
+        </div>
+
+        <p class="readout ps-time mono" data-ps="time"> - / - </p>
+
+        <div class="transport">
+          <button class="btn btn--primary btn--play" type="button" data-ps="play" aria-pressed="false" disabled>
+            <span class="transport__glyph" aria-hidden="true">▶</span> Play
+          </button>
+          <button class="btn" type="button" data-ps="pause" disabled>
+            <span class="transport__glyph" aria-hidden="true">❚❚</span> Pause
+          </button>
+          <button class="btn btn--stop" type="button" data-ps="stop" disabled>
+            <span class="transport__glyph" aria-hidden="true">■</span> Stop
+          </button>
+        </div>
+
+        <div class="transport__export">
+          <button class="btn" type="button" data-ps="export" disabled>Export WAV</button>
+          <div class="export-progress" data-ps="export-progress" hidden>
+            <div class="export-progress__bar"><span data-ps="export-bar"></span></div>
+            <span class="mono" data-ps="export-pct">0%</span>
+          </div>
+        </div>
+
+        <p class="status mono" data-ps="status" role="status" aria-live="polite">Ready. Choose an audio file to begin.</p>
+      </div>
+
+      <!-- Right: pitch controls -->
+      <div class="stack">
+        <div class="field">
+          <label class="label" for="ps-semitone">Semitones</label>
+          <div class="control-row">
+            <input
+              class="input input--readout mono"
+              id="ps-semitone-num"
+              data-ps="semitone-num"
+              type="number"
+              min="-24"
+              max="24"
+              step="1"
+              value="0"
+              inputmode="numeric"
+              aria-label="Semitones, −24 to +24"
+            />
+            <span class="control-row__out">
+              <span class="mono control-row__big" data-ps="ratio">×1.0000</span>
+              <span class="label">ratio</span>
+            </span>
+          </div>
+          <input class="slider" id="ps-semitone" data-ps="semitone" type="range" min="-24" max="24" step="1" value="0" aria-label="Semitones" />
+          <div class="nudge">
+            <button class="btn btn--sm" type="button" data-ps="nudge" data-value="-12">−12</button>
+            <button class="btn btn--sm" type="button" data-ps="nudge" data-value="-1">−1</button>
+            <button class="btn btn--sm" type="button" data-ps="nudge" data-value="1">+1</button>
+            <button class="btn btn--sm" type="button" data-ps="nudge" data-value="12">+12</button>
+            <button class="btn btn--sm btn--ghost" type="button" data-ps="reset">Reset</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="label" for="ps-cents">Fine tune · cents (1 semitone = 100 ¢)</label>
+          <div class="control-row">
+            <input
+              class="input mono"
+              id="ps-cents-num"
+              data-ps="cents-num"
+              type="number"
+              min="-100"
+              max="100"
+              step="1"
+              value="0"
+              inputmode="numeric"
+              aria-label="Fine tune in cents, −100 to +100"
+            />
+            <input class="slider" id="ps-cents" data-ps="cents" type="range" min="-100" max="100" step="1" value="0" aria-label="Fine tune in cents" />
+          </div>
+        </div>
+
+        <div class="field">
+          <span class="label" id="ps-mode-label">Duration handling</span>
+          <button
+            class="toggle"
+            type="button"
+            data-ps="maintain"
+            aria-pressed="true"
+            aria-describedby="ps-mode-help"
+          >
+            <span class="led" data-on="true" aria-hidden="true"></span>
+            <span class="toggle__text">Maintain tempo</span>
+          </button>
+          <p class="hint" id="ps-mode-help" data-ps="mode-help">
+            On - overlap-add resynthesis keeps the clip length fixed; only the pitch moves.
+          </p>
+        </div>
+
+        <div class="stat-grid">
+          <div class="stat"><p class="stat__k">Pitch ratio</p><p class="stat__v" data-ps="ratio-out">1.0000</p></div>
+          <div class="stat"><p class="stat__k">440 Hz becomes</p><p class="stat__v" data-ps="pitch440">440.0 Hz</p></div>
+          <div class="stat"><p class="stat__k">Source length</p><p class="stat__v" data-ps="srclen"> - </p></div>
+          <div class="stat"><p class="stat__k">Result length</p><p class="stat__v" data-ps="outlen"> - </p></div>
+        </div>
+
+        <div class="notice notice--info">
+          <span class="notice__icon" aria-hidden="true">i</span>
+          <p class="notice__body">
+            Transients are where this method shows. Overlap-add rebuilds the signal from ~50 ms windowed frames, so a
+            sharp attack can be duplicated or skipped, which sounds metallic. Keep shifts within ±5 semitones when the
+            material has percussive attacks.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================= Reference ========================= -->
+  <Panel eyebrow="Reference" title="Semitones, ratios and what they do">
+    <div class="two-col">
+      <table class="table-tech">
+        <thead>
+          <tr><th>Semitones</th><th>Ratio</th><th>Typical use</th></tr>
+        </thead>
+        <tbody>
+          {
+            semitoneRows.map(([semis, ratio, use]) => (
+              <tr>
+                <td class="mono">{semis > 0 ? `+${semis}` : semis}</td>
+                <td class="mono">{ratio}</td>
+                <td>{use}</td>
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+      <div class="prose-tech">
+        <h2>How the shift is built</h2>
+        <p>
+          The engine reads the source with an interpolating pointer whose step is the pitch ratio, then rebuilds the
+          timeline with <strong>WSOLA</strong> (waveform-similarity overlap-add). The signal is cut into frames of about
+          50&nbsp;ms, each shaped by a Hann window and added back at half-frame hops, so overlapping frames sum to a
+          constant level. Before each frame is placed, the processor searches roughly ±10&nbsp;ms of source material for
+          the position whose overlap best correlates with the previous frame - that phase alignment is what stops the
+          output turning into a buzz.
+        </p>
+        <p>
+          Pitch and tempo are separate numbers. <span class="mono">pitchRatio</span> sets the resampling step;
+          <span class="mono">tempoRatio</span> sets how fast the read pointer advances, and the output length is always
+          <span class="mono">sourceLength / tempoRatio</span>. With <em>Maintain tempo</em> on, the page sends
+          <span class="mono">tempoRatio = 1</span>; with it off it sends <span class="mono">tempoRatio = pitchRatio</span>,
+          which is mathematically a plain resample - pitch and duration move together, exactly like varispeed tape.
+        </p>
+        <h2>What you should expect to hear</h2>
+        <ul>
+          <li>≤ ±2 semitones: essentially transparent on music and speech.</li>
+          <li>±3 … ±7: usable; some softening of consonants and cymbal transients.</li>
+          <li>≥ ±12: obvious formant shift (voices sound like chipmunks or demons) and audible frame smearing.</li>
+          <li>Percussion and sibilants are always hit hardest - sustained, tonal material shifts cleanly.</li>
+        </ul>
+      </div>
+    </div>
+  </Panel>
+
+  <div class="two-col">
+    <Panel eyebrow="FAQ" title="Pitch shifting questions">
+      <div class="faq">
+        {
+          faqs.map((faq) => (
+            <details>
+              <summary>{faq.q}</summary>
+              <p>{faq.a}</p>
+            </details>
+          ))
+        }
+      </div>
+    </Panel>
+
+    <Panel eyebrow="More tools" title="Related tools">
+      <div class="card-grid">
+        {
+          related.map((item) => (
+            <a class="card" href={item.href}>
+              <p class="card__t">{item.title}</p>
+              <p class="card__d">{item.tagline}</p>
+            </a>
+          ))
+        }
+      </div>
+    </Panel>
+  </div>
+
+  <script>
+    import '../scripts/pitch-shifter';
+  </script>
+</Base>
+
+<style>
+  .hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(260px, 1fr);
+    gap: 20px;
+    align-items: start;
+    margin-bottom: 18px;
+  }
+  @media (max-width: 900px) {
+    .hero { grid-template-columns: minmax(0, 1fr); }
+  }
+  .hero h1 {
+    font-size: clamp(1.6rem, 3.2vw, 2.1rem);
+    margin: 6px 0 8px;
+  }
+  .hero__lead {
+    color: var(--color-ink-2);
+    max-width: 68ch;
+    margin: 0;
+    font-size: 14.5px;
+  }
+  .notice__body { margin: 0; }
+
+  .ps__body {
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+    gap: 20px;
+  }
+  @media (max-width: 1000px) {
+    .ps__body { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  .stack { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+
+  .drop {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 22px 14px;
+    text-align: center;
+    background: var(--color-void);
+    border: 1px dashed var(--color-line-3);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: border-color 120ms ease, background 120ms ease;
+  }
+  .drop:hover, .drop[data-over='true'] {
+    border-color: var(--color-signal);
+    background: color-mix(in oklab, var(--color-signal) 7%, var(--color-void));
+  }
+  .drop__glyph { font-size: 20px; color: var(--color-signal); }
+  .drop__title { font-size: 13.5px; font-weight: 500; }
+  .drop__hint { font-size: 10.5px; color: var(--color-ink-4); }
+
+  .ps-scope { height: 150px; }
+  .ps-scope canvas { cursor: crosshair; touch-action: none; }
+
+  .ps-time { font-size: 12.5px; color: var(--color-ink-2); margin: 0; }
+
+  .transport {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+  .transport__glyph { font-size: 9px; }
+  .transport__export { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+
+  .export-progress { display: flex; align-items: center; gap: 8px; flex: 1 1 160px; min-width: 140px; }
+  .export-progress__bar {
+    flex: 1 1 auto;
+    height: 5px;
+    background: var(--color-panel-3);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .export-progress__bar span {
+    display: block;
+    height: 100%;
+    width: 0;
+    background: var(--color-signal);
+    transition: width 120ms linear;
+  }
+  .export-progress .mono { font-size: 11px; color: var(--color-ink-3); }
+
+  .control-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .control-row .input { width: auto; max-width: 130px; }
+  .control-row .slider { flex: 1 1 140px; }
+  .control-row__out {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 1px;
+    margin-left: auto;
+  }
+  .control-row__big { font-size: 18px; color: var(--color-signal); }
+
+  .nudge { display: flex; flex-wrap: wrap; gap: 6px; }
+
+  .toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    align-self: flex-start;
+    padding: 7px 13px;
+    background: var(--color-void);
+    border: 1px solid var(--color-line-2);
+    border-radius: var(--radius-sm);
+    color: var(--color-ink-2);
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .toggle:hover { border-color: var(--color-line-3); color: var(--color-ink); }
+  .toggle[aria-pressed='true'] {
+    border-color: color-mix(in oklab, var(--color-signal) 46%, transparent);
+    background: color-mix(in oklab, var(--color-signal) 12%, var(--color-panel-2));
+    color: var(--color-signal);
+    font-weight: 600;
+  }
+
+  .hint {
+    margin: 0;
+    font-size: 11.5px;
+    color: var(--color-ink-4);
+    line-height: 1.6;
+  }
+
+  .status {
+    font-size: 11.5px;
+    color: var(--color-ink-3);
+    margin: 0;
+    min-height: 18px;
+  }
+  .status[data-kind='ok'] { color: var(--color-signal); }
+  .status[data-kind='error'] { color: var(--color-danger); }
+  .status[data-kind='warn'] { color: var(--color-warn); }
+
+  .two-col {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 14px;
+    margin-top: 14px;
+  }
+  @media (max-width: 1000px) {
+    .two-col { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  .faq details { border-bottom: 1px solid var(--color-line); padding: 10px 0; }
+  .faq details:first-of-type { padding-top: 0; }
+  .faq summary {
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 13.5px;
+    list-style: none;
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+  }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary::before { content: "+"; font-family: var(--font-mono); color: var(--color-signal); flex: none; }
+  .faq details[open] summary::before { content: "−"; }
+  .faq details p { margin: 8px 0 0 18px; font-size: 13px; color: var(--color-ink-2); line-height: 1.65; }
+</style>

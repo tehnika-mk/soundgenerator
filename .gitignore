@@ -1,0 +1,22 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+.astro/
+
+# QA screenshots and browser artifacts
+qa-artifacts/
+
+# env / secrets
+.env
+.env.*
+
+# deploy platforms
+.vercel/
+.netlify/
+
+# os / editor
+.DS_Store
+Thumbs.db
+*.log

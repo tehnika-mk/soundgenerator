@@ -1,0 +1,92 @@
+---
+import { SITE, TOOLS, CATEGORY_ORDER, toolsByCategory } from '../data/tools';
+
+interface Props {
+  current?: string;
+}
+
+const { current = Astro.url.pathname } = Astro.props;
+const isCurrent = (href: string) =>
+  current === href || (href !== '/' && current.replace(/\/$/, '') === href.replace(/\/$/, ''));
+
+const contentPages = TOOLS.filter((tool) => tool.content);
+---
+
+<nav class="rail" id="site-rail" data-open="false" aria-label="Tools">
+  <div class="rail-hint">
+    <span class="label">Signal tools</span>
+    <span class="mono rail-hint__n">{TOOLS.filter((t) => !t.content).length}</span>
+  </div>
+
+  {CATEGORY_ORDER.map((category) => {
+    const items = toolsByCategory(category).filter((tool) => !tool.content);
+    if (items.length === 0) return null;
+    return (
+      <div class="rail-group">
+        <p class="label rail-group__title">{category}</p>
+        <ul>
+          {items.map((tool) => (
+            <li>
+              <a class="rail-link" href={tool.href} title={tool.tagline} aria-current={isCurrent(tool.href) ? 'page' : undefined}>
+                {tool.nav}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  })}
+
+  <div class="rail-group rail-group--foot">
+    <ul>
+      {contentPages.map((tool) => (
+        <li>
+          <a class="rail-link" href={tool.href} aria-current={isCurrent(tool.href) ? 'page' : undefined}>
+            {tool.nav}
+          </a>
+        </li>
+      ))}
+    </ul>
+  </div>
+
+  <p class="rail-note">
+    Everything is generated locally with the Web Audio API. Nothing you play or record leaves your device.
+  </p>
+</nav>
+
+<style>
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .rail-hint {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 8px 10px;
+    margin-bottom: 6px;
+    border-bottom: 1px solid var(--color-line);
+  }
+  .rail-hint__n {
+    font-size: 11px;
+    color: var(--color-ink-4);
+  }
+  .rail-group__title {
+    padding: 0 8px;
+    margin: 12px 0 4px;
+  }
+  .rail-group--foot {
+    margin-top: 18px;
+    padding-top: 10px;
+    border-top: 1px solid var(--color-line);
+  }
+  .rail-note {
+    font-size: 11.5px;
+    line-height: 1.5;
+    color: var(--color-ink-4);
+    padding: 16px 8px 0;
+    margin: 16px 0 0;
+    border-top: 1px solid var(--color-line);
+  }
+</style>

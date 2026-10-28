@@ -1,0 +1,270 @@
+---
+import Base from '../layouts/Base.astro';
+import Panel from '../components/Panel.astro';
+import { TOOLS } from '../data/tools';
+
+const tool = TOOLS.find((t) => t.href === '/voice-generator')!;
+
+const faqs = [
+  {
+    q: 'Why can’t I save the speech as an audio file?',
+    a: 'The Web Speech API hands your text to the browser’s speech engine and plays it straight to the audio output - it never exposes the generated samples to the page. There is no buffer to read and no stream to capture, by design, in every browser that implements it. If you need a file, record the output with your computer’s own audio routing, or record a human voice with the Voice Recorder page, which does give you a WAV.',
+  },
+  {
+    q: 'Why do the available voices differ between devices?',
+    a: 'Synthesis is done locally by the operating system. Windows, macOS, Android, iOS and Linux each ship different engines and voice packs, so the list you see here is exactly what your device has installed - nothing more, nothing less. A browser on one machine may offer forty voices; the same browser on another may offer four. If a voice you expect is missing, it usually has not been downloaded on that device.',
+  },
+  {
+    q: 'Is my text sent anywhere?',
+    a: 'With the voices this page can see, no: they are local voices and the text is spoken on your device. Some platforms mark certain voices as network-based, and those may send the text to a server to synthesise it. The page lists what your device reports; it does not phone home itself and does not store what you type.',
+  },
+  {
+    q: 'What are the rate, pitch and volume controls?',
+    a: 'Rate is speaking speed as a multiple of normal - 0.5 is half speed, 2 is double. Pitch shifts the voice up or down without changing the speed. Volume is the speech output level within the page. All three are passed straight to the speech engine, so a few voices ignore or clip extreme values.',
+  },
+];
+
+const related = TOOLS.filter((t) => ['/voice-recorder', '/pitch-shifter', '/time-stretcher', '/'].includes(t.href) && t.href !== '/voice-generator');
+---
+
+<Base
+  title={tool.title}
+  description={tool.meta}
+  tool={tool}
+  keywords={tool.keywords}
+>
+  <!-- ============================ Hero ============================ -->
+  <div class="hero">
+    <div class="hero__text">
+      <p class="label label--accent">Voice &amp; files · on-device speech</p>
+      <h1>{tool.title}</h1>
+      <p class="hero__lead">
+        Type or paste text, choose one of the voices your device has installed, and hear it read back. Speed, pitch and
+        volume are adjustable, and playback can be paused and resumed mid-sentence. The speech is produced by your
+        operating system - nothing is uploaded.
+      </p>
+    </div>
+    <div class="hero__aside">
+      <div class="notice notice--info">
+        <span class="notice__icon" aria-hidden="true">i</span>
+        <p class="notice__body">
+          <strong>Nothing you type is sent anywhere.</strong> The page hands your text to your device’s own
+          speech engine. The voices listed are exactly those installed on this machine; a different device will
+          offer a different set.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================= Panel ========================== -->
+  <section class="panel vg" id="voice-generator" data-vg="root" aria-labelledby="vg-heading">
+    <header class="panel__head">
+      <div class="flex items-center gap-2">
+        <span class="label" id="vg-heading">Speech synthesis</span>
+        <span class="badge">Web Speech</span>
+      </div>
+      <span class="mono vg__count" data-vg="count">scanning voices…</span>
+    </header>
+
+    <div class="panel__body vg__body">
+      <div class="notice notice--warn vg__unsupported" data-vg="unsupported" hidden>
+        <span class="notice__icon" aria-hidden="true">!</span>
+        <p class="notice__body">
+          This browser does not support the Web Speech API, so speech synthesis is unavailable here. Try a current
+          desktop or mobile browser. The rest of the page still explains how speech synthesis works.
+        </p>
+      </div>
+
+      <div class="notice notice--warn vg__novoice" data-vg="novoice" hidden>
+        <span class="notice__icon" aria-hidden="true">!</span>
+        <p class="notice__body">
+          Your browser supports speech synthesis but reports no installed voices. On some systems the voice list loads
+          asynchronously or voices must be installed in the operating system’s speech settings first. Speak is disabled
+          until a voice appears.
+        </p>
+      </div>
+
+      <div class="stack">
+        <div class="field">
+          <label class="label" for="vg-voice">Voice</label>
+          <select class="input" id="vg-voice" data-vg="voice" disabled>
+            <option value="">Loading voices…</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label class="label" for="vg-text">Text to speak</label>
+          <textarea
+            class="input vg__textarea"
+            id="vg-text"
+            data-vg="text"
+            rows="5"
+            spellcheck="false"
+            aria-describedby="vg-text-help">The quick brown fox jumps over the lazy dog. Speech synthesis turns this text into sound using the voices installed on your device.</textarea
+          >
+          <p class="hint" id="vg-text-help">
+            Longer text is read as one utterance; use Stop to cancel it part-way and Resume to continue.
+          </p>
+        </div>
+
+        <div class="field">
+          <div class="slider-head">
+            <label class="label" for="vg-rate">Rate</label>
+            <span class="mono" data-vg="rate-out">1.00×</span>
+          </div>
+          <input class="slider" id="vg-rate" data-vg="rate" type="range" min="0.5" max="2" step="0.05" value="1" />
+        </div>
+
+        <div class="field">
+          <div class="slider-head">
+            <label class="label" for="vg-pitch">Pitch</label>
+            <span class="mono" data-vg="pitch-out">1.00</span>
+          </div>
+          <input class="slider" id="vg-pitch" data-vg="pitch" type="range" min="0" max="2" step="0.05" value="1" />
+        </div>
+
+        <div class="field">
+          <div class="slider-head">
+            <label class="label" for="vg-volume">Volume</label>
+            <span class="mono" data-vg="volume-out">100%</span>
+          </div>
+          <input class="slider" id="vg-volume" data-vg="volume" type="range" min="0" max="1" step="0.05" value="1" />
+        </div>
+
+        <div class="transport">
+          <button class="btn btn--primary btn--play" type="button" data-vg="speak" aria-pressed="false" disabled>
+            <span class="transport__glyph" aria-hidden="true">▶</span> Speak
+          </button>
+          <button class="btn" type="button" data-vg="pause" disabled>Pause</button>
+          <button class="btn" type="button" data-vg="resume" disabled>Resume</button>
+          <button class="btn btn--stop" type="button" data-vg="stop" disabled>
+            <span class="transport__glyph" aria-hidden="true">■</span> Stop
+          </button>
+        </div>
+
+        <p class="status mono" data-vg="status" role="status" aria-live="polite">Waiting for the voice list.</p>
+
+        <p class="hint">
+          Downloading the speech as an audio file is not possible with pure Web Speech - the API plays the sound but
+          never exposes the samples to the page. To record a voice into a WAV file, use the
+          <a href="/voice-recorder">Voice Recorder</a>, which captures from your microphone instead.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================= Reference ========================= -->
+  <div class="two-col">
+    <Panel eyebrow="Reference" title="Speech synthesis is not signal synthesis">
+      <div class="prose-tech">
+        <p>
+          Everywhere else on this site a “generator” builds a waveform sample by sample: an oscillator produces a sine,
+          a sweep or a pulse train, and we control its frequency and level. Speech synthesis is a different kind of
+          machine entirely.
+        </p>
+        <h3>Words, not waveforms</h3>
+        <p>
+          A text-to-speech engine takes written words, works out how they should be pronounced (a process called
+          text normalisation and grapheme-to-phoneme conversion), then drives a model - historically concatenated
+          recorded fragments, today usually a neural network - to produce the sound of speech. You hand it text and
+          parameters such as rate and pitch; you do not hand it a frequency. The output is a complete utterance, not a
+          tone you can tune.
+        </p>
+        <h3>Why the voice list is device-dependent</h3>
+        <p>
+          The Web Speech API deliberately delegates the actual speaking to the host. The browser asks the operating
+          system which voices exist, and the OS answers with whatever its speech engine provides - the same pool other
+          apps use. That is why the same page shows a long list on one computer and a short one on another, and why
+          installing a language pack in your system settings changes what appears here.
+        </p>
+        <h3>Typical uses</h3>
+        <ul>
+          <li>Accessibility: reading page content or notifications aloud for low-vision users.</li>
+          <li>Proof-reading: hearing your own writing exposes awkward phrasing that silent reading hides.</li>
+          <li>Prototypes: giving a voice to an interface long before you commission real recordings.</li>
+          <li>Language practice: hearing pronunciation at a slower rate with a chosen accent.</li>
+        </ul>
+        <p class="hint">
+          It is a real speech engine, not a toy - but it is a reading voice, not a studio recording. Expect robotic
+          prosody from older system voices, and no fine control over emotion or emphasis.
+        </p>
+      </div>
+    </Panel>
+
+    <Panel eyebrow="FAQ" title="Questions people actually ask">
+      <div class="faq">
+        {
+          faqs.map((faq) => (
+            <details>
+              <summary>{faq.q}</summary>
+              <p>{faq.a}</p>
+            </details>
+          ))
+        }
+      </div>
+    </Panel>
+  </div>
+
+  <!-- ===================== Related tools ===================== -->
+  <Panel eyebrow="More tools" title="Related tools">
+    <div class="card-grid">
+      {
+        related.map((item) => (
+          <a class="card" href={item.href}>
+            <p class="card__t">{item.title}</p>
+            <p class="card__d">{item.tagline}</p>
+          </a>
+        ))
+      }
+    </div>
+  </Panel>
+
+  <script>
+    import '../scripts/voice-generator';
+  </script>
+</Base>
+
+<style>
+  .hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(260px, 1fr);
+    gap: 20px;
+    align-items: start;
+    margin-bottom: 18px;
+  }
+  @media (max-width: 900px) {
+    .hero { grid-template-columns: minmax(0, 1fr); }
+  }
+  .hero h1 { font-size: clamp(1.6rem, 3.2vw, 2.1rem); margin: 6px 0 8px; }
+  .hero__lead { color: var(--color-ink-2); max-width: 68ch; margin: 0; font-size: 14.5px; }
+  .notice__body { margin: 0; }
+
+  .vg__body { display: flex; flex-direction: column; gap: 14px; }
+  .stack { display: flex; flex-direction: column; gap: 14px; }
+  .vg__count { font-size: 11px; color: var(--color-ink-3); }
+  .vg__unsupported, .vg__novoice { margin: 0; }
+
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .vg__textarea { min-height: 108px; resize: vertical; line-height: 1.55; font-family: var(--font-sans); }
+  .slider-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .hint { margin: 6px 0 0; font-size: 11.5px; color: var(--color-ink-4); line-height: 1.65; }
+  .hint a { color: var(--color-signal); text-decoration: underline; text-underline-offset: 2px; }
+
+  .transport { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .transport__glyph { font-size: 9px; }
+  .status { font-size: 11.5px; color: var(--color-ink-3); margin: 0; min-height: 18px; }
+  .status[data-kind='ok'] { color: var(--color-signal); }
+  .status[data-kind='error'] { color: var(--color-danger); }
+  .status[data-kind='warn'] { color: var(--color-warn); }
+
+  .two-col { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; margin-top: 14px; }
+  @media (max-width: 1000px) { .two-col { grid-template-columns: minmax(0, 1fr); } }
+
+  .faq details { border-bottom: 1px solid var(--color-line); padding: 10px 0; }
+  .faq details:first-of-type { padding-top: 0; }
+  .faq summary { cursor: pointer; font-weight: 500; font-size: 13.5px; list-style: none; display: flex; gap: 8px; align-items: baseline; }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary::before { content: "+"; font-family: var(--font-mono); color: var(--color-signal); flex: none; }
+  .faq details[open] summary::before { content: "−"; }
+  .faq details p { margin: 8px 0 0 18px; font-size: 13px; color: var(--color-ink-2); line-height: 1.65; }
+</style>

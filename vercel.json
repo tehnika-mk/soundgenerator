@@ -1,0 +1,37 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "astro",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "headers": [
+    {
+      "source": "/_astro/(.*)",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
+    },
+    {
+      "source": "/worklets/(.*)",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "Permissions-Policy", "value": "camera=(), geolocation=(), payment=(), microphone=(self)" }
+      ]
+    }
+  ],
+  "redirects": [
+    { "source": "/tone-generator", "destination": "/", "permanent": true },
+    { "source": "/frequency-sweep-generator", "destination": "/sweep-generator", "permanent": true },
+    { "source": "/noise", "destination": "/noise-generator", "permanent": true },
+    { "source": "/binauralbeats", "destination": "/binaural-beats", "permanent": true },
+    { "source": "/tuning", "destination": "/instrument-tuning", "permanent": true },
+    { "source": "/hearingtest", "destination": "/hearing-test", "permanent": true },
+    { "source": "/subwoofer", "destination": "/subwoofer-test", "permanent": true },
+    { "source": "/432Hz", "destination": "/432hz", "permanent": true },
+    { "source": "/privacy-policy", "destination": "/privacy", "permanent": true }
+  ]
+}

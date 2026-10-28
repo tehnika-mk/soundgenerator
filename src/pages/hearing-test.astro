@@ -1,0 +1,343 @@
+---
+import Base from '../layouts/Base.astro';
+import Panel from '../components/Panel.astro';
+import { TOOLS } from '../data/tools';
+import { HEARING_TEST_FREQUENCIES } from '../lib/audio/notes';
+
+const tool = TOOLS.find((t) => t.href === '/hearing-test')!;
+
+/** Compact label: 125 Hz, 8 kHz, 17.4 kHz. */
+const hzLabel = (hz: number): string =>
+  hz >= 1000 ? `${(hz / 1000).toFixed(hz % 1000 === 0 ? 0 : 1)} kHz` : `${hz} Hz`;
+
+/**
+ * Approximate age-related upper-frequency limits. These are population
+ * averages from large audiometric surveys, not thresholds and not a test.
+ */
+const ageBands = [
+  { age: 'Under 20', hz: 17400, note: 'Mosquito-tone territory; many teenagers still hear this.' },
+  { age: '20 – 29', hz: 17000, note: 'The classic “mosquito ringtone” sits here.' },
+  { age: '30 – 39', hz: 16000, note: 'High-frequency loss has usually begun.' },
+  { age: '40 – 49', hz: 14000, note: 'Sharp drop for most adults.' },
+  { age: '50 – 59', hz: 12000, note: 'Cymbals and sibilance start to dull.' },
+  { age: '60 – 69', hz: 11000, note: 'Averages cluster around 10–12 kHz.' },
+  { age: '70 and over', hz: 8000, note: 'Wide spread - many hear far less, some far more.' },
+];
+
+const faqs = [
+  {
+    q: 'Is this a real hearing test?',
+    a: 'No. It is a self-guided sweep through standard audiometric frequencies using whatever headphones or speakers you happen to have. It cannot measure hearing thresholds in decibels, cannot separate left from right ear, and cannot diagnose hearing loss or tinnitus. A clinical audiogram uses calibrated transducers in a sound-treated booth. Treat your results as a rough, informal observation only.',
+  },
+  {
+    q: 'Why do results depend so much on my gear?',
+    a: 'Every headphone and speaker has its own frequency response. Laptop speakers fall off a cliff above about 12 kHz, many cheap earbuds roll off above 15 kHz, and soundcards resample everything above 20 kHz away entirely. If the driver cannot reproduce 17 kHz, you will not hear it even with perfect hearing. Try the test with a known-good pair of headphones before drawing any conclusion.',
+  },
+  {
+    q: 'What level should I start at?',
+    a: 'Start with the level slider well down - the display shows attenuation in negative decibels relative to a deliberately low ceiling, so a more negative number is quieter. Raise it only as far as you need to just hear the tone, then keep it there for every frequency so your answers are comparable. Never test at high volume, and stop immediately if anything is uncomfortable.',
+  },
+  {
+    q: 'Where are my results stored?',
+    a: 'Nothing leaves your browser. Your answers are saved in this browser’s local storage under a versioned key so they survive a reload, and you can clear them at any time with the Clear saved results button. The CSV and summary exports are generated on your device too.',
+  },
+];
+
+const related = TOOLS.filter((t) => ['/subwoofer-test', '/tone-generator', '/'].includes(t.href) && t.href !== '/hearing-test');
+---
+
+<Base
+  title={tool.title}
+  description={tool.meta}
+  tool={tool}
+  keywords={tool.keywords}
+>
+  <!-- ============================ Hero ============================ -->
+  <div class="hero">
+    <div class="hero__text">
+      <p class="label label--accent">Hearing &amp; speakers · informal sweep</p>
+      <h1>{tool.title}</h1>
+      <p class="hero__lead">
+        Step through {HEARING_TEST_FREQUENCIES.length} audiometric frequencies from 125 Hz to 20 kHz. At each step you
+        sound a pure sine tone at a level you choose, then answer two honest questions: can you hear it, and at what
+        level? Your answers are logged in a table you can export. Everything runs in your browser.
+      </p>
+    </div>
+    <div class="hero__aside">
+      <div class="notice notice--danger">
+        <span class="notice__icon" aria-hidden="true">!</span>
+        <p class="notice__body">
+          <strong>This is not a medical test.</strong> It cannot diagnose hearing loss, and results depend entirely on
+          your headphones, volume and environment. Start low, raise the level only as far as you need, and never test
+          at high volume.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================= Test rig ========================== -->
+  <section class="panel ht" id="hearing-test" data-ht="root" aria-labelledby="ht-heading">
+    <header class="panel__head">
+      <div class="flex items-center gap-2">
+        <span class="label" id="ht-heading">Test</span>
+        <span class="badge">Web Audio</span>
+      </div>
+      <span class="mono ht__progress" data-ht="progress" aria-live="polite">Frequency 0 of {HEARING_TEST_FREQUENCIES.length}</span>
+    </header>
+
+    <div class="panel__body ht__body">
+      <!-- Current frequency -->
+      <div class="stack">
+        <div class="ht__readout">
+          <span class="label">Current frequency</span>
+          <p class="readout readout--big" data-ht="freq-value">125 Hz</p>
+          <p class="mono ht__freq-note" data-ht="freq-index">step 1 / {HEARING_TEST_FREQUENCIES.length}</p>
+        </div>
+
+        <div class="ht__bar" role="progressbar" aria-label="Test progress" aria-valuemin="0" aria-valuemax={HEARING_TEST_FREQUENCIES.length} aria-valuenow="0">
+          <span data-ht="bar-fill"></span>
+        </div>
+
+        <div class="field">
+          <div class="slider-head">
+            <label class="label" for="ht-level">Level (attenuation from safe ceiling)</label>
+            <span class="mono" data-ht="level-out">−12 dB</span>
+          </div>
+          <input class="slider" id="ht-level" data-ht="level" type="range" min="0" max="60" step="1" value="12" aria-describedby="ht-level-help" />
+          <p class="hint" id="ht-level-help">More negative = quieter. The ceiling is fixed and low on purpose.</p>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label class="label" for="ht-duration">Auto-stop after</label>
+            <select class="input input--compact" id="ht-duration" data-ht="duration">
+              <option value="1">1 s</option>
+              <option value="2">2 s</option>
+              <option value="3" selected>3 s</option>
+              <option value="5">5 s</option>
+              <option value="10">10 s</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="transport">
+          <button class="btn btn--primary btn--play" type="button" data-ht="play" aria-pressed="false">
+            <span class="transport__glyph" aria-hidden="true">▶</span> Play tone
+          </button>
+          <button class="btn btn--stop" type="button" data-ht="stop" disabled>
+            <span class="transport__glyph" aria-hidden="true">■</span> Stop
+          </button>
+        </div>
+
+        <div class="ht__verdicts">
+          <p class="label">Verdict for this frequency</p>
+          <div class="ht__verdict-btns" role="group" aria-label="Verdict for the current frequency">
+            <button class="btn ht__verdict ht__verdict--yes" type="button" data-ht="heard">I can hear it</button>
+            <button class="btn ht__verdict ht__verdict--no" type="button" data-ht="cannot">I cannot hear it</button>
+          </div>
+        </div>
+
+        <p class="status mono" data-ht="status" role="status" aria-live="polite">Ready. Press play, then answer.</p>
+
+        <div class="scope scope--wave ht__scope">
+          <span class="scope__tag">Oscilloscope · test tone</span>
+          <canvas data-scope="wave"></canvas>
+        </div>
+      </div>
+
+      <!-- Results -->
+      <div class="stack">
+        <div class="ht__results-head">
+          <span class="label">Results</span>
+          <div class="ht__result-actions">
+            <button class="btn btn--ghost btn--sm" type="button" data-ht="csv">Download CSV</button>
+            <button class="btn btn--ghost btn--sm" type="button" data-ht="copy">Copy summary</button>
+            <button class="btn btn--ghost btn--sm" type="button" data-ht="restart">Restart</button>
+            <button class="btn btn--ghost btn--sm" type="button" data-ht="clear">Clear saved results</button>
+          </div>
+        </div>
+
+        <div class="ht__table-wrap">
+          <table class="table-tech ht__table">
+            <thead>
+              <tr><th>Frequency</th><th>Verdict</th><th>Level heard</th></tr>
+            </thead>
+            <tbody data-ht="rows">
+              {
+                HEARING_TEST_FREQUENCIES.map((hz, i) => (
+                  <tr data-ht="row" data-hz={hz} data-index={i}>
+                    <td class="mono">{hzLabel(hz)}</td>
+                    <td data-ht="cell-verdict"> - </td>
+                    <td class="mono" data-ht="cell-level"> - </td>
+                  </tr>
+                ))
+              }
+            </tbody>
+          </table>
+        </div>
+        <p class="mono ht__summary" data-ht="summary">No results yet. Answer a frequency to begin.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================= Reference ========================= -->
+  <div class="two-col">
+    <Panel eyebrow="Reference" title="Typical upper-frequency limits by age">
+      <table class="table-tech">
+        <thead>
+          <tr><th>Age band</th><th>Approx. limit</th><th>Notes</th></tr>
+        </thead>
+        <tbody>
+          {
+            ageBands.map((band) => (
+              <tr>
+                <td>{band.age}</td>
+                <td class="mono">{hzLabel(band.hz)}</td>
+                <td>{band.note}</td>
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+      <p class="hint">
+        These are <strong>population averages</strong>, not thresholds. Individual hearing varies widely, and a good
+        pair of headphones can easily move your measured limit by an octave or more in either direction. A number that
+        looks “young” or “old” here means very little on its own.
+      </p>
+    </Panel>
+
+    <Panel eyebrow="FAQ" title="Questions people actually ask">
+      <div class="faq">
+        {
+          faqs.map((faq) => (
+            <details>
+              <summary>{faq.q}</summary>
+              <p>{faq.a}</p>
+            </details>
+          ))
+        }
+      </div>
+    </Panel>
+  </div>
+
+  <!-- ===================== Related tools ===================== -->
+  <Panel eyebrow="More tools" title="Related tests">
+    <div class="card-grid">
+      {
+        related.map((item) => (
+          <a class="card" href={item.href}>
+            <p class="card__t">{item.title}</p>
+            <p class="card__d">{item.tagline}</p>
+          </a>
+        ))
+      }
+    </div>
+  </Panel>
+
+  <script>
+    import '../scripts/hearing-test';
+  </script>
+</Base>
+
+<style>
+  .hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(260px, 1fr);
+    gap: 20px;
+    align-items: start;
+    margin-bottom: 18px;
+  }
+  @media (max-width: 900px) {
+    .hero { grid-template-columns: minmax(0, 1fr); }
+  }
+  .hero h1 { font-size: clamp(1.6rem, 3.2vw, 2.1rem); margin: 6px 0 8px; }
+  .hero__lead { color: var(--color-ink-2); max-width: 68ch; margin: 0; font-size: 14.5px; }
+  .notice__body { margin: 0; }
+
+  .ht__body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+    gap: 20px;
+  }
+  @media (max-width: 1000px) {
+    .ht__body { grid-template-columns: minmax(0, 1fr); }
+  }
+  .stack { display: flex; flex-direction: column; gap: 14px; }
+  .ht__progress { font-size: 11px; color: var(--color-ink-3); }
+
+  .ht__readout {
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-md);
+    background: var(--color-void);
+    padding: 12px 14px;
+  }
+  .ht__readout .readout--big { margin: 4px 0 2px; color: var(--color-signal); }
+  .ht__freq-note { font-size: 11px; color: var(--color-ink-4); margin: 0; }
+
+  .ht__bar {
+    height: 6px;
+    border-radius: 999px;
+    background: var(--color-panel-3);
+    overflow: hidden;
+  }
+  .ht__bar span {
+    display: block;
+    height: 100%;
+    width: 0%;
+    background: var(--color-signal);
+    transition: width 160ms ease;
+  }
+
+  .slider-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .hint { margin: 6px 0 0; font-size: 11.5px; color: var(--color-ink-4); line-height: 1.6; }
+  .input--compact { min-height: 30px; padding: 3px 8px; font-size: 12px; width: auto; min-width: 90px; }
+  .field-row { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+
+  .transport { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .transport__glyph { font-size: 9px; }
+
+  .ht__verdicts { display: flex; flex-direction: column; gap: 7px; }
+  .ht__verdict-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  @media (max-width: 420px) { .ht__verdict-btns { grid-template-columns: 1fr; } }
+  .ht__verdict { min-height: 44px; font-size: 13.5px; }
+  .ht__verdict--yes {
+    --btn-bg: color-mix(in oklab, var(--color-signal) 13%, var(--color-panel-2));
+    --btn-bd: color-mix(in oklab, var(--color-signal) 44%, transparent);
+    --btn-fg: var(--color-signal);
+  }
+  .ht__verdict--no {
+    --btn-bg: color-mix(in oklab, var(--color-info) 12%, var(--color-panel-2));
+    --btn-bd: color-mix(in oklab, var(--color-info) 40%, transparent);
+    --btn-fg: var(--color-info);
+  }
+
+  .status { font-size: 11.5px; color: var(--color-ink-3); margin: 0; min-height: 18px; }
+  .status[data-kind='ok'] { color: var(--color-signal); }
+  .status[data-kind='error'] { color: var(--color-danger); }
+  .status[data-kind='warn'] { color: var(--color-warn); }
+
+  .ht__scope { margin-top: 2px; }
+
+  .ht__results-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .ht__result-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+
+  .ht__table-wrap { overflow-x: auto; border: 1px solid var(--color-line); border-radius: var(--radius-sm); }
+  .ht__table { min-width: 320px; }
+  .ht__table tbody tr { cursor: pointer; }
+  .ht__table tbody tr[data-active='true'] { background: color-mix(in oklab, var(--color-signal) 10%, transparent); }
+  .ht__table td[data-heard='yes'] { color: var(--color-signal); }
+  .ht__table td[data-heard='no'] { color: var(--color-danger); }
+  .ht__summary { font-size: 11.5px; color: var(--color-ink-3); margin: 2px 0 0; }
+
+  .two-col { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; margin-top: 14px; }
+  @media (max-width: 1000px) { .two-col { grid-template-columns: minmax(0, 1fr); } }
+
+  .faq details { border-bottom: 1px solid var(--color-line); padding: 10px 0; }
+  .faq details:first-of-type { padding-top: 0; }
+  .faq summary { cursor: pointer; font-weight: 500; font-size: 13.5px; list-style: none; display: flex; gap: 8px; align-items: baseline; }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary::before { content: "+"; font-family: var(--font-mono); color: var(--color-signal); flex: none; }
+  .faq details[open] summary::before { content: "−"; }
+  .faq details p { margin: 8px 0 0 18px; font-size: 13px; color: var(--color-ink-2); line-height: 1.65; }
+</style>

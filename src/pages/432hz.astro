@@ -1,0 +1,376 @@
+---
+import Base from '../layouts/Base.astro';
+import Panel from '../components/Panel.astro';
+import { A4_REFERENCE_PRESETS, NOTE_NAMES, midiToFreq, noteLabel, roundTo } from '../lib/audio/notes';
+import { TOOLS } from '../data/tools';
+
+const tool = TOOLS.find((t) => t.href === '/432hz')!;
+
+const REFERENCES = [440, 432, 435, 415];
+
+/** Cent difference of a reference from 440 Hz: 1200·log2(ref/440). */
+function centsFrom440(ref: number): number {
+  return Math.round(1200 * Math.log2(ref / 440) * 10) / 10;
+}
+
+const comparisonNotes = [60, 62, 64, 65, 67, 69, 71, 72]; // C4 D4 E4 F4 G4 A4 B4 C5
+const comparisonRows = comparisonNotes.map((midi) => ({
+  name: noteLabel(midi),
+  freqs: REFERENCES.map((ref) => roundTo(midiToFreq(midi, ref), 2)),
+}));
+
+const centsRow = REFERENCES.map((ref) => centsFrom440(ref));
+
+// Chromatic note picker C3 – C6 (three octaves).
+const pickerMidis = Array.from({ length: 37 }, (_, i) => 48 + i);
+const pickerKeys = pickerMidis.map((midi) => {
+  const name = noteLabel(midi);
+  return {
+    midi,
+    name,
+    black: name.includes('#'),
+    freq440: roundTo(midiToFreq(midi, 440), 2),
+  };
+});
+
+const faqs = [
+  {
+    q: 'What actually changes between 440 Hz and 432 Hz?',
+    a: 'Pitch, and nothing else. 432 Hz is 1200·log2(432/440) ≈ −31.7 cents below 440 Hz, about one third of a semitone. If you play A = 440 then A = 432 back to back, the second is simply a little flatter. There is no difference in waveform, harmonic content or the physics of the sound beyond its fundamental frequency.',
+  },
+  {
+    q: 'Does 432 Hz have health, DNA or chakra benefits?',
+    a: 'No. Those claims are not supported by evidence. Controlled listening tests find no reliable physiological or psychological effect that depends on the reference pitch itself; the effects reported are the ordinary ones any music produces, mediated by expectation and setting. Treat the 432 Hz tuning as a musical preference, which is an entirely legitimate reason to use it - just not a medical one.',
+  },
+  {
+    q: 'Where do these reference frequencies come from?',
+    a: '440 Hz was standardised as ISO 16 in 1975. Before that, France adopted a “diapason normal” of 435 Hz in 1859, and baroque pitch is generally taken as 415 Hz - roughly a semitone below modern concert pitch. Orchestras still tune to other references for period repertoire, and many digital instruments let you set A4 anywhere.',
+  },
+  {
+    q: 'How is every frequency on this page calculated?',
+    a: 'Equal temperament: f = A4 · 2^((n − 69) / 12), where n is the MIDI note number and A4 is the reference you pick. Change the reference and every note moves by the same ratio, so the whole table scales together. The readouts here are computed, not looked up.',
+  },
+];
+
+const guideCents = centsFrom440(432);
+---
+
+<Base
+  title={tool.title}
+  description={tool.meta}
+  tool={tool}
+  keywords={tool.keywords}
+>
+  <!-- ============================ Hero ============================ -->
+  <div class="hero">
+    <div class="hero__text">
+      <p class="label label--accent">Music &amp; tuning · reference pitch</p>
+      <h1>{tool.title}</h1>
+      <p class="hero__lead">
+        Play 432 Hz, set any note in three octaves under a 440, 432, 435 or 415 Hz reference, and compare what each
+        note becomes. Every frequency is derived from equal temperament, and the page shows the maths and the history
+        rather than repeating the claims.
+      </p>
+    </div>
+    <div class="hero__aside">
+      <div class="notice">
+        <span class="notice__icon" aria-hidden="true">!</span>
+        <p class="notice__body">
+          A sine tone at 432 Hz is still a sine tone. Set the header level low before pressing play, raise it slowly,
+          and remember that sustained tones at high volume are fatiguing and can damage hearing whatever their
+          frequency.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================== Generator panel ====================== -->
+  <section class="panel" id="generator-432" data-tone-generator aria-labelledby="gen-heading">
+    <header class="panel__head">
+      <div class="flex items-center gap-2">
+        <span class="label" id="gen-heading">432 Hz generator</span>
+        <span class="badge badge--signal">Web Audio</span>
+      </div>
+      <button class="btn btn--ghost btn--sm" type="button" data-tg="share">Copy link</button>
+    </header>
+
+    <div class="panel__body gen__body">
+      <div class="stack">
+        <div class="field">
+          <label class="label" for="freq-input">Frequency (Hz)</label>
+          <div class="freq-row">
+            <input
+              id="freq-input"
+              class="input input--readout mono"
+              data-tg="freq"
+              type="text"
+              inputmode="decimal"
+              value="432"
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <div class="freq-row__note">
+              <span class="readout freq-row__pitch" data-ref-note> - </span>
+              <span class="mono freq-row__cents" data-ref-cents> - </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="field">
+          <span class="label" id="ref-label">Reference pitch (A4)</span>
+          <div class="segmented" role="group" aria-labelledby="ref-label" data-ref>
+            {
+              A4_REFERENCE_PRESETS.map((preset, index) => (
+                <button
+                  class="segmented__item mono"
+                  type="button"
+                  data-ref-hz={preset.hz}
+                  aria-pressed={index === 0 ? 'true' : 'false'}
+                  title={preset.detail}
+                >
+                  {preset.hz}
+                </button>
+              ))
+            }
+          </div>
+          <p class="hint" data-ref-detail>Standard concert pitch (ISO 16).</p>
+        </div>
+
+        <div class="field">
+          <span class="label" id="wave-label">Waveform</span>
+          <div class="segmented" role="group" aria-labelledby="wave-label">
+            {
+              (
+                [
+                  ['sine', 'Sine'],
+                  ['triangle', 'Tri'],
+                  ['square', 'Square'],
+                  ['sawtooth', 'Saw'],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  class="segmented__item"
+                  type="button"
+                  data-tg="waveform"
+                  data-value={value}
+                  aria-pressed={value === 'sine' ? 'true' : 'false'}
+                >
+                  {label}
+                </button>
+              ))
+            }
+          </div>
+        </div>
+
+        <div class="transport">
+          <button class="btn btn--primary btn--play" type="button" data-tg="play" aria-pressed="false">
+            <span class="transport__glyph" aria-hidden="true">▶</span> Play 432 Hz
+          </button>
+          <button class="btn btn--stop" type="button" data-tg="stop" aria-pressed="false" disabled>
+            <span class="transport__glyph" aria-hidden="true">■</span> Stop
+          </button>
+          <div class="export">
+            <button class="btn" type="button" data-tg="export">Save WAV</button>
+            <label class="visually-hidden" for="export-length">Clip length</label>
+            <select class="input input--compact mono" id="export-length" data-tg="export-seconds">
+              <option value="1">1 s</option>
+              <option value="5">5 s</option>
+              <option value="10" selected>10 s</option>
+              <option value="30">30 s</option>
+            </select>
+          </div>
+        </div>
+
+        <p class="status mono" data-tg="status" role="status" aria-live="polite">Ready. Press play to sound 432 Hz.</p>
+      </div>
+
+      <div class="stack">
+        <div class="scope scope--wave">
+          <span class="scope__tag">Oscilloscope · output</span>
+          <canvas data-scope="wave"></canvas>
+        </div>
+        <div class="scope scope--spec">
+          <span class="scope__tag">Spectrum · 0 – 20 kHz</span>
+          <canvas data-scope="spectrum" data-peak="true"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Note picker -->
+    <div class="panel__body panel__body--tight hairline">
+      <div class="keys-head">
+        <span class="label">Note picker · C3 – C6 · sets the frequency</span>
+        <span class="mono keys-head__hint">A4 = <span data-a4-readout>440</span> Hz</span>
+      </div>
+      <div class="keys" role="group" aria-label="Note picker" data-notes></div>
+    </div>
+  </section>
+
+  <!-- ========================= Reference ========================= -->
+  <Panel eyebrow="Reference" title="What each note becomes under each reference">
+    <p class="hint">
+      Equal-tempered frequencies for one octave of notes under each reference pitch. Because equal temperament scales
+      linearly with A4, the cent difference from 440 Hz is identical for every note in a column.
+    </p>
+    <div class="table-scroll">
+      <table class="table-tech">
+        <thead>
+          <tr>
+            <th>Note</th>
+            {REFERENCES.map((ref) => (<th class="mono">A4 = {ref} Hz</th>))}
+          </tr>
+        </thead>
+        <tbody>
+          {
+            comparisonRows.map((row) => (
+              <tr>
+                <td><strong>{row.name}</strong></td>
+                {row.freqs.map((hz) => (<td class="mono">{hz.toFixed(2)} Hz</td>))}
+              </tr>
+            ))
+          }
+          <tr>
+            <td><strong>Δ vs 440 Hz</strong></td>
+            {centsRow.map((cents) => (
+              <td class="mono">{cents === 0 ? '0 ¢' : `${cents > 0 ? '+' : ''}${cents} ¢`}</td>
+            ))}
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </Panel>
+
+  <!-- ========================== Guide =========================== -->
+  <Panel eyebrow="Guide" title="The maths, the history and the claims" badge="Honest">
+    <div class="prose-tech">
+      <h2>The interval is {Math.abs(guideCents)} cents</h2>
+      <p>
+        The distance from 440 Hz to 432 Hz is <strong>{Math.abs(guideCents)} cents</strong> - roughly one third of a
+        semitone (a semitone is 100 cents). It is clearly audible as a slightly flatter pitch and is far too small to
+        change the character of a note. For comparison, 415 Hz baroque pitch is about 101 cents below 440, a full
+        semitone, which is why it sounds noticeably lower.
+      </p>
+      <h2>Equal temperament</h2>
+      <p>
+        Every frequency on this page comes from one formula, where <code>n</code> is the MIDI note number
+        (A4 = 69, middle C4 = 60):
+      </p>
+      <p><code>f = A4 · 2^((n − 69) / 12)</code></p>
+      <p>
+        Under A4 = 440, middle C4 is 261.63 Hz. Under A4 = 432 it is 256.87 Hz - the same note, the same interval,
+        a lower reference. Change the number at the top of the page and the picker, readouts and the table all follow
+        the same rule; nothing is looked up from a list.
+      </p>
+      <h2>A short history of A4</h2>
+      <ul>
+        <li><strong>1859 - France</strong> adopts the <em>diapason normal</em> of 435 Hz in an early attempt to stop
+          pitch drifting upward.</li>
+        <li><strong>1939 / 1975 - international standard.</strong> An international conference recommends 440 Hz in
+          1939; ISO 16 confirms A4 = 440 Hz in 1975 as the standard tuning reference.</li>
+        <li><strong>415 Hz</strong> is the usual modern choice for baroque pitch, about a semitone below 440, used for
+          period-instrument performance.</li>
+      </ul>
+      <h2>On the health claims</h2>
+      <p>
+        You will find 432 Hz described as “natural”, “healing”, or aligned with the earth, DNA or chakras. None of
+        these claims is supported by evidence. There is no established mechanism by which the reference pitch of A4
+        affects the body, and controlled listening tests do not find reliable effects that survive expectation and
+        setting. What is verifiable is narrow and clear: <strong>432 Hz is a slightly lower tuning than 440 Hz</strong>,
+        it is mathematically well defined, it has real historical precedent in the range of pitches orchestras have
+        used, and some players and listeners simply prefer how it sounds. That preference is a perfectly good reason to
+        use it. It is just not a physiological one.
+      </p>
+    </div>
+  </Panel>
+
+  <Panel eyebrow="FAQ" title="Questions people actually ask">
+    <div class="faq">
+      {
+        faqs.map((faq) => (
+          <details>
+            <summary>{faq.q}</summary>
+            <p>{faq.a}</p>
+          </details>
+        ))
+      }
+    </div>
+  </Panel>
+
+  <script>
+    import '../scripts/432hz';
+  </script>
+</Base>
+
+<style>
+  .hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(260px, 1fr);
+    gap: 20px;
+    align-items: start;
+    margin-bottom: 18px;
+  }
+  @media (max-width: 900px) { .hero { grid-template-columns: minmax(0, 1fr); } }
+  .hero h1 { font-size: clamp(1.6rem, 3.2vw, 2.1rem); margin: 6px 0 8px; }
+  .hero__lead { color: var(--color-ink-2); max-width: 68ch; margin: 0; font-size: 14.5px; }
+  .notice__body { margin: 0; }
+
+  .gen__body { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 20px; }
+  @media (max-width: 1000px) { .gen__body { grid-template-columns: minmax(0, 1fr); } }
+  .stack { display: flex; flex-direction: column; gap: 14px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+
+  .freq-row { display: flex; align-items: stretch; gap: 10px; }
+  .freq-row .input--readout { flex: 1 1 auto; font-size: 30px; letter-spacing: -0.02em; padding: 8px 12px; }
+  .freq-row__note {
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 1px;
+    min-width: 92px;
+    padding: 2px 10px;
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-sm);
+    background: var(--color-panel-2);
+  }
+  .freq-row__pitch { font-size: 20px; }
+  .freq-row__cents { font-size: 10.5px; color: var(--color-ink-3); }
+
+  .transport { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .transport__glyph { font-size: 9px; }
+  .export { display: flex; gap: 6px; align-items: center; }
+  .export select { min-width: 74px; }
+  .input--compact { min-height: 30px; padding: 3px 8px; font-size: 12px; width: auto; }
+
+  .hint { margin: 7px 0 0; font-size: 11.5px; color: var(--color-ink-4); line-height: 1.7; }
+  .status { font-size: 11.5px; color: var(--color-ink-3); margin: 0; min-height: 18px; }
+  .status[data-kind='ok'] { color: var(--color-signal); }
+  .status[data-kind='error'] { color: var(--color-danger); }
+  .status[data-kind='warn'] { color: var(--color-warn); }
+
+  .keys-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .keys-head__hint { font-size: 10.5px; color: var(--color-ink-4); }
+  .key__name { display: block; }
+  .key__hz { display: block; font-size: 9px; color: var(--color-ink-4); }
+  .key[aria-pressed='true'] .key__hz { color: #04231b; }
+
+  .table-scroll { overflow-x: auto; }
+  .table-scroll table { min-width: 480px; }
+
+  .faq details { border-bottom: 1px solid var(--color-line); padding: 10px 0; }
+  .faq details:first-of-type { padding-top: 0; }
+  .faq summary {
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 13.5px;
+    list-style: none;
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+  }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary::before { content: '+'; font-family: var(--font-mono); color: var(--color-signal); flex: none; }
+  .faq details[open] summary::before { content: '−'; }
+  .faq details p { margin: 8px 0 0 18px; font-size: 13px; color: var(--color-ink-2); line-height: 1.65; }
+</style>

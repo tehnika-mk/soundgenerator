@@ -1,0 +1,169 @@
+---
+import { SITE } from '../data/tools';
+---
+
+<header class="header">
+  <button class="btn btn--ghost btn--sm rail-toggle" type="button" data-rail-toggle aria-expanded="false" aria-controls="site-rail">
+    <span aria-hidden="true">☰</span>
+    <span class="rail-toggle__text">Tools</span>
+  </button>
+
+  <a class="brand" href="/" aria-label={`${SITE.name} home`}>
+    <span class="brand__mark" aria-hidden="true">
+      <svg width="18" height="14" viewBox="0 0 24 14" fill="none">
+        <path d="M0.5,7 C3.5,0.5 8.5,0.5 11.5,7 C14.5,13.5 19.5,13.5 23.5,7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+      </svg>
+    </span>
+    <span class="brand__name mono">SOUNDGENERATOR<span class="brand__tld">.APP</span></span>
+  </a>
+
+  <!-- Global transport: one place to control and silence everything -->
+  <div class="transport" role="group" aria-label="Global audio output">
+    <div class="transport__vol">
+      <label class="label transport__vol-label" for="master-volume">Level</label>
+      <input
+        id="master-volume"
+        class="slider transport__slider"
+        type="range"
+        min="0"
+        max="100"
+        step="1"
+        value="50"
+        data-transport="volume"
+        aria-describedby="master-volume-readout"
+      />
+    </div>
+
+    <output class="mono transport__readout" id="master-volume-readout" data-transport="volume-readout">50%</output>
+
+    <div class="transport__meter" aria-hidden="true">
+      <span class="transport__meter-fill" data-transport="meter"></span>
+      <span class="led" data-transport="clip" title="Clip indicator"></span>
+    </div>
+
+    <output class="mono transport__led" data-transport="level-value" title="Output level"> - </output>
+
+    <button class="btn btn--ghost btn--sm" type="button" data-transport="mute" aria-pressed="false">Mute</button>
+    <button class="btn btn--sm stop-all" type="button" data-transport="stop-all" title="Stop every sound (Esc)">
+      Stop all
+    </button>
+
+    <span class="transport__meta mono" title="Sample rate · audio context state">
+      <span data-transport="rate"> - </span>
+      <span class="transport__dot" aria-hidden="true">·</span>
+      <span data-transport="state">idle</span>
+    </span>
+  </div>
+</header>
+
+<style>
+  .header {
+    gap: 12px;
+  }
+
+  .rail-toggle {
+    display: none;
+    gap: 6px;
+  }
+  @media (max-width: 1080px) {
+    .rail-toggle { display: inline-flex; }
+  }
+
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex: none;
+    min-width: 0;
+  }
+  .brand:hover { color: var(--color-ink); }
+  .brand__mark {
+    color: var(--color-signal);
+    display: inline-flex;
+    padding: 4px;
+    border: 1px solid var(--color-line-2);
+    border-radius: var(--radius-sm);
+    background: var(--color-panel);
+  }
+  .brand__name {
+    font-size: 12.5px;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .brand__tld { color: var(--color-ink-4); }
+  @media (max-width: 720px) {
+    .brand__name { font-size: 11px; }
+    .brand__tld { display: none; }
+  }
+
+  .transport {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto;
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+
+  .transport__vol {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .transport__slider { width: 118px; }
+  @media (max-width: 900px) {
+    .transport__slider { width: 78px; }
+    .transport__vol-label { display: none; }
+  }
+
+  .transport__readout,
+  .transport__led {
+    font-size: 11px;
+    color: var(--color-ink-3);
+    width: 84px;
+    white-space: nowrap;
+  }
+  .transport__led { width: 56px; }
+
+  .transport__meter {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 74px;
+    height: 8px;
+    padding: 2px;
+    border: 1px solid var(--color-line);
+    border-radius: 999px;
+    background: var(--color-void);
+  }
+  .transport__meter-fill {
+    display: block;
+    height: 100%;
+    width: 0%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--color-signal-2), var(--color-signal) 70%, var(--color-warn));
+    transition: width 60ms linear;
+  }
+
+  .transport__meta {
+    font-size: 10.5px;
+    color: var(--color-ink-4);
+    white-space: nowrap;
+  }
+  .transport__dot { padding: 0 3px; }
+
+  .stop-all {
+    --btn-fg: var(--color-ink-2);
+  }
+
+  @media (max-width: 1080px) {
+    .transport__meta,
+    .transport__led { display: none; }
+  }
+  @media (max-width: 620px) {
+    .transport__vol,
+    .transport__readout,
+    .transport__meter { display: none; }
+  }
+</style>

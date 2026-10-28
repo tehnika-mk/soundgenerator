@@ -1,0 +1,302 @@
+---
+import Base from '../layouts/Base.astro';
+import Panel from '../components/Panel.astro';
+import { TOOLS } from '../data/tools';
+import { ALARM_PATTERNS } from '../lib/audio/notes';
+
+const tool = TOOLS.find((t) => t.href === '/alarm-generator')!;
+
+const faqs = [
+  {
+    q: 'What is the difference between pulses-per-minute and BPM?',
+    a: 'For the pulsed patterns (beep, double beep, pulse train) one cycle contains the pulse or pulses, so the rate is pulses per minute - 120 means two pulses per second. For siren and warble the rate is cycles per minute: one full rise-and-fall, or one complete back-and-forth, each cycle. The unit label next to the slider changes with the pattern so the number always means the same thing to you.',
+  },
+  {
+    q: 'Why are the rate controls greyed out for continuous?',
+    a: 'A continuous tone has no pulse to repeat and no rise and fall to cycle, so there is nothing for a rate to control. Only the base tone and the level apply. The page says so explicitly rather than leaving dead controls on screen.',
+  },
+  {
+    q: 'How is the WAV export made?',
+    a: 'The Save WAV button renders roughly ten seconds of the pattern in an OfflineAudioContext - the same pulse scheduling the live engine uses, just rendered faster than real time - then encodes it to a 16-bit PCM WAV at 44.1 kHz. The export is the exact signal, not a recording of your speakers.',
+  },
+  {
+    q: 'Can I use these tones as a real alarm?',
+    a: 'No. This is a browser test-signal generator. It stops if you close the tab or the browser suspends audio, it has no redundancy, no power-fail behaviour and no certification. Use it to design, demonstrate or test an alarm idea, then build the real thing with certified equipment.',
+  },
+];
+
+const related = TOOLS.filter((t) => ['/tone-generator', '/sweep-generator', '/dtmf', '/'].includes(t.href) && t.href !== '/alarm-generator');
+---
+
+<Base
+  title={tool.title}
+  description={tool.meta}
+  tool={tool}
+  keywords={tool.keywords}
+>
+  <!-- ============================ Hero ============================ -->
+  <div class="hero">
+    <div class="hero__text">
+      <p class="label label--accent">Generators · attention signals</p>
+      <h1>{tool.title}</h1>
+      <p class="hero__lead">
+        Build the tones that wake people up: single beeps, double beeps, sirens, urgent warbles, a stutter pulse train
+        or a plain continuous tone. Pick a pattern, set the pitch and tempo, and the browser schedules every pulse
+        precisely on the audio clock. Save the result as a WAV file.
+      </p>
+    </div>
+    <div class="hero__aside">
+      <div class="notice">
+        <span class="notice__icon" aria-hidden="true">!</span>
+        <p class="notice__body">
+          <strong>This is a test signal, not certified alarm equipment.</strong> Alarms are loud by design - start with
+          the level low and wear headphones at a distance when experimenting. Nothing here is rated for life-safety use.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================= Panel ========================== -->
+  <section class="panel al" id="alarm" data-al="root" aria-labelledby="al-heading">
+    <header class="panel__head">
+      <div class="flex items-center gap-2">
+        <span class="label" id="al-heading">Alarm</span>
+        <span class="badge">Web Audio</span>
+      </div>
+      <span class="mono al__status-inline" data-al="status-inline">beep · 120 pulses / min</span>
+    </header>
+
+    <div class="panel__body al__body">
+      <!-- Left: controls -->
+      <div class="stack">
+        <div>
+          <span class="label" id="al-pattern-label">Pattern</span>
+          <div class="segmented al__patterns" role="group" aria-labelledby="al-pattern-label">
+            {
+              ALARM_PATTERNS.map((pattern, i) => (
+                <button
+                  class="segmented__item"
+                  type="button"
+                  data-al="pattern"
+                  data-value={pattern.id}
+                  aria-pressed={i === 0 ? 'true' : 'false'}
+                  title={pattern.detail}
+                >
+                  {pattern.label}
+                </button>
+              ))
+            }
+          </div>
+          <p class="hint" data-al="pattern-detail">Short pulses of one tone.</p>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label class="label" for="al-base">Base tone (Hz)</label>
+            <input class="input mono" id="al-base" data-al="base" type="number" min="200" max="4000" step="10" value="800" />
+          </div>
+          <div class="field">
+            <label class="label" for="al-second">Second tone (Hz)</label>
+            <input class="input mono" id="al-second" data-al="second" type="number" min="200" max="4000" step="10" value="1000" />
+            <p class="hint" data-al="second-hint">Used by siren and warble.</p>
+          </div>
+        </div>
+
+        <div class="field">
+          <div class="slider-head">
+            <label class="label" for="al-rate">Rate <span class="mono" data-al="rate-unit">pulses / min</span></label>
+            <span class="mono" data-al="rate-out">120</span>
+          </div>
+          <input class="slider" id="al-rate" data-al="rate" type="range" min="30" max="600" step="1" value="120" />
+          <p class="hint" data-al="rate-hint">At 120, one pulse lands every 0.5 s.</p>
+        </div>
+
+        <div class="field">
+          <div class="slider-head">
+            <label class="label" for="al-beep">Beep length</label>
+            <span class="mono" data-al="beep-out">120 ms</span>
+          </div>
+          <input class="slider" id="al-beep" data-al="beep" type="range" min="20" max="500" step="10" value="120" />
+          <p class="hint" data-al="beep-hint">Length of each pulse in the pulsing patterns.</p>
+        </div>
+
+        <div class="field">
+          <div class="slider-head">
+            <label class="label" for="al-level">Level</label>
+            <span class="mono" data-al="level-out">70%</span>
+          </div>
+          <input class="slider" id="al-level" data-al="level" type="range" min="0" max="100" step="1" value="70" />
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label class="label" for="al-autostop">Auto-stop</label>
+            <select class="input input--compact" id="al-autostop" data-al="autostop">
+              <option value="0">Off</option>
+              <option value="30">30 s</option>
+              <option value="60">60 s</option>
+              <option value="300">5 min</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="transport">
+          <button class="btn btn--primary btn--play" type="button" data-al="play" aria-pressed="false">
+            <span class="transport__glyph" aria-hidden="true">▶</span> Play
+          </button>
+          <button class="btn btn--stop" type="button" data-al="stop" disabled>
+            <span class="transport__glyph" aria-hidden="true">■</span> Stop
+          </button>
+          <button class="btn" type="button" data-al="export">Save WAV</button>
+        </div>
+
+        <p class="status mono" data-al="status" role="status" aria-live="polite">Ready. Press play to sound the pattern.</p>
+      </div>
+
+      <!-- Right: visualisation -->
+      <div class="stack">
+        <div class="scope al__timeline">
+          <span class="scope__tag">Pattern envelope · two cycles · 10 s export preview</span>
+          <canvas id="al-timeline" data-al="timeline" aria-label="Alarm pattern timeline"></canvas>
+        </div>
+        <div class="al__legend mono">
+          <span><span class="al__swatch"></span> tone on</span>
+          <span><span class="al__swatch al__swatch--grid"></span> cycle boundary</span>
+        </div>
+        <p class="hint">
+          The timeline is drawn from the same scheduled events the audio engine plays - one vertical bar per pulse, or
+          a line tracing the rise and fall for siren and warble. It is a static drawing, not a live analyser.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================= Reference ========================= -->
+  <div class="two-col">
+    <Panel eyebrow="Reference" title="What makes an alarm cut through">
+      <div class="prose-tech">
+        <p>
+          An alarm has to beat whatever noise it competes with and pull attention without warning. Three properties do
+          most of the work.
+        </p>
+        <h3>Pitch in the sensitive band</h3>
+        <p>
+          Human hearing is most sensitive between roughly 2 and 5 kHz, and the ear canal resonates near 3 kHz. A tone in
+          that band needs far less energy to seem loud, which is why smoke alarms and reversing alarms cluster around
+          2–4 kHz. This generator caps the base tone at 4 kHz and defaults to a mid-range 800 Hz you can raise.
+        </p>
+        <h3>Repeated rhythm</h3>
+        <p>
+          A steady tone is easy to ignore; pulses are not. The brain treats a repeating on/off pattern as an event and
+          keeps re-orienting toward it. Faster repetition reads as more urgent, and the classic alarm trade-off is
+          between urgency (fast) and annoyance (too fast, for too long, at the wrong time).
+        </p>
+        <h3>Rise time and sweep</h3>
+        <p>
+          A slow rise and fall - the siren - is one of the most attention-grabbing shapes there is, which is why it
+          signals emergency vehicles the world over. A sharp attack with a short decay, in contrast, gives the crisp
+          “beep” of a device that wants a quick acknowledgement rather than sustained alarm.
+        </p>
+        <p class="hint">
+          Safety: this page exists to design and test alarm sounds, not to replace a certified alarm. Keep the level
+          moderate, and never leave a loud repeating tone running near your ears or anyone else’s.
+        </p>
+      </div>
+    </Panel>
+
+    <Panel eyebrow="FAQ" title="Questions people actually ask">
+      <div class="faq">
+        {
+          faqs.map((faq) => (
+            <details>
+              <summary>{faq.q}</summary>
+              <p>{faq.a}</p>
+            </details>
+          ))
+        }
+      </div>
+    </Panel>
+  </div>
+
+  <!-- ===================== Related tools ===================== -->
+  <Panel eyebrow="More tools" title="Related generators">
+    <div class="card-grid">
+      {
+        related.map((item) => (
+          <a class="card" href={item.href}>
+            <p class="card__t">{item.title}</p>
+            <p class="card__d">{item.tagline}</p>
+          </a>
+        ))
+      }
+    </div>
+  </Panel>
+
+  <script>
+    import '../scripts/alarm-generator';
+  </script>
+</Base>
+
+<style>
+  .hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(260px, 1fr);
+    gap: 20px;
+    align-items: start;
+    margin-bottom: 18px;
+  }
+  @media (max-width: 900px) {
+    .hero { grid-template-columns: minmax(0, 1fr); }
+  }
+  .hero h1 { font-size: clamp(1.6rem, 3.2vw, 2.1rem); margin: 6px 0 8px; }
+  .hero__lead { color: var(--color-ink-2); max-width: 68ch; margin: 0; font-size: 14.5px; }
+  .notice__body { margin: 0; }
+
+  .al__body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+    gap: 20px;
+  }
+  @media (max-width: 1000px) {
+    .al__body { grid-template-columns: minmax(0, 1fr); }
+  }
+  .stack { display: flex; flex-direction: column; gap: 14px; }
+  .al__status-inline { font-size: 11px; color: var(--color-ink-3); }
+
+  .al__patterns { margin-top: 6px; }
+  .al__patterns .segmented__item { min-width: 84px; }
+  @media (max-width: 520px) {
+    .al__patterns .segmented__item { flex: 1 1 40%; }
+  }
+
+  .slider-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .hint { margin: 6px 0 0; font-size: 11.5px; color: var(--color-ink-4); line-height: 1.6; }
+  .input--compact { min-height: 30px; padding: 3px 8px; font-size: 12px; width: auto; min-width: 90px; }
+  .field-row { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+
+  .transport { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .transport__glyph { font-size: 9px; }
+
+  .status { font-size: 11.5px; color: var(--color-ink-3); margin: 0; min-height: 18px; }
+  .status[data-kind='ok'] { color: var(--color-signal); }
+  .status[data-kind='error'] { color: var(--color-danger); }
+  .status[data-kind='warn'] { color: var(--color-warn); }
+
+  .al__timeline { height: 180px; }
+  .al__timeline canvas { display: block; width: 100%; height: 100%; }
+  .al__legend { display: flex; gap: 16px; font-size: 10.5px; color: var(--color-ink-3); }
+  .al__swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; background: var(--color-signal); vertical-align: middle; margin-right: 4px; }
+  .al__swatch--grid { background: none; border-left: 1px dashed var(--color-line-3); width: 0; height: 12px; border-radius: 0; }
+
+  .two-col { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; margin-top: 14px; }
+  @media (max-width: 1000px) { .two-col { grid-template-columns: minmax(0, 1fr); } }
+
+  .faq details { border-bottom: 1px solid var(--color-line); padding: 10px 0; }
+  .faq details:first-of-type { padding-top: 0; }
+  .faq summary { cursor: pointer; font-weight: 500; font-size: 13.5px; list-style: none; display: flex; gap: 8px; align-items: baseline; }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary::before { content: "+"; font-family: var(--font-mono); color: var(--color-signal); flex: none; }
+  .faq details[open] summary::before { content: "−"; }
+  .faq details p { margin: 8px 0 0 18px; font-size: 13px; color: var(--color-ink-2); line-height: 1.65; }
+</style>

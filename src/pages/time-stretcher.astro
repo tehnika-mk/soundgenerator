@@ -1,0 +1,466 @@
+---
+import Base from '../layouts/Base.astro';
+import Panel from '../components/Panel.astro';
+import { TOOLS } from '../data/tools';
+
+const tool = TOOLS.find((t) => t.href === '/time-stretcher')!;
+
+const related = TOOLS.filter((t) =>
+  ['/pitch-shifter', '/metronome', '/instrument-tuning', '/voice-recorder'].includes(t.href),
+);
+
+const presets = [
+  { value: 0.5, label: '0.5× slow practice' },
+  { value: 0.75, label: '0.75×' },
+  { value: 1, label: '1× original' },
+  { value: 1.25, label: '1.25×' },
+  { value: 1.5, label: '1.5×' },
+  { value: 2, label: '2×' },
+] as const;
+
+const faqs = [
+  {
+    q: 'What is time stretching actually used for?',
+    a: 'Three things, mostly. Transcribing: slow a solo or a fast passage to half speed so you can write it down or play along, without the pitch dropping an octave. Practising: loop four bars at 0.75× and creep the tempo up as you learn them. And listening: speed a podcast or a lecture up to 1.5× or 2× to get through it faster while the voices still sound like voices.',
+  },
+  {
+    q: 'Why does speeding audio up normally make it sound like a chipmunk?',
+    a: 'Because a plain speed change is a resampling. If you play a waveform back faster, you are reading its samples more quickly, so every cycle of the waveform takes less time - the frequency rises. Frequency and duration are two sides of one number: play it twice as fast and everything moves up an octave. The only way to change the duration without touching the pitch is to rebuild the signal at a new length instead of just reading it faster, which is what overlap-add resynthesis does.',
+  },
+  {
+    q: 'How does this tool keep the pitch when I slow it down?',
+    a: 'With WSOLA - waveform-similarity overlap-add. The signal is cut into ~50 ms frames and re-laid onto a longer (or shorter) timeline; because each frame is a copy of the original waveform, its frequency content is unchanged. The synthesis hop sets the new duration while the frame contents keep the pitch. The processor also searches nearby material so consecutive frames stay phase-aligned, which is what keeps the result from turning into a metallic buzz.',
+  },
+  {
+    q: 'What does the loop feature do, and how do I set the loop points?',
+    a: 'Drag the two handles on the waveform to mark a section, then switch Loop on and playback repeats that section instead of running to the end - the usual way to drill a difficult bar. The default loop region is the whole file. Exports always render the whole file at the chosen tempo, not the loop.',
+  },
+];
+---
+
+<Base
+  title={tool.title}
+  description={tool.meta}
+  tool={tool}
+  keywords={tool.keywords}
+>
+  <!-- ============================ Hero ============================ -->
+  <div class="hero">
+    <div class="hero__text">
+      <p class="label label--accent">Voice &amp; files · 0.25× – 4× · pitch preserved</p>
+      <h1>{tool.title}</h1>
+      <p class="hero__lead">
+        Change the speed of a recording without changing its pitch. Load a file, choose a tempo, and the engine rebuilds
+        the audio with overlap-add resynthesis so a 3-minute solo at 0.5× lasts 6 minutes and still sits in the same key.
+        Loop a hard four bars and drill them, or push a podcast to 1.5×.
+      </p>
+    </div>
+    <div class="hero__aside">
+      <div class="notice">
+        <span class="notice__icon" aria-hidden="true">!</span>
+        <p class="notice__body">
+          Processing happens entirely on your device - nothing is uploaded. Be realistic about the extremes: below 0.5×
+          and above 2× the resynthesis smears transients and adds a faint warble, and exported files keep that. Turn the
+          header level down before exporting long clips.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================== Tool ========================== -->
+  <section class="panel ts" id="time-stretcher" aria-labelledby="ts-heading">
+    <header class="panel__head">
+      <div class="flex items-center gap-2 min-w-0">
+        <span class="label" id="ts-heading">Time stretcher</span>
+        <span class="badge">WSOLA · Web Audio</span>
+      </div>
+      <span class="badge" data-ts="engine-badge">idle</span>
+    </header>
+
+    <div class="panel__body ts__body">
+      <!-- Left: source -->
+      <div class="stack">
+        <label class="drop" id="ts-drop" for="ts-file">
+          <input class="visually-hidden" id="ts-file" type="file" accept="audio/*" data-ts="file" />
+          <span class="drop__glyph" aria-hidden="true">♪</span>
+          <span class="drop__title">Choose an audio file, or drop one here</span>
+          <span class="drop__hint mono">MP3 · WAV · OGG · FLAC · M4A · Opus - decoded locally, never uploaded</span>
+        </label>
+
+        <div class="stat-grid">
+          <div class="stat"><p class="stat__k">File</p><p class="stat__v" data-ts="name"> - </p></div>
+          <div class="stat"><p class="stat__k">Duration</p><p class="stat__v" data-ts="duration"> - </p></div>
+          <div class="stat"><p class="stat__k">Sample rate</p><p class="stat__v" data-ts="rate"> - </p></div>
+          <div class="stat"><p class="stat__k">Channels</p><p class="stat__v" data-ts="channels"> - </p></div>
+        </div>
+
+        <div class="scope ts-scope">
+          <span class="scope__tag">Waveform · click to seek · drag the edge handles to set the loop</span>
+          <canvas id="ts-wave" data-ts="wave"></canvas>
+        </div>
+
+        <p class="readout ts-time mono" data-ts="time"> - / - </p>
+
+        <div class="transport">
+          <button class="btn btn--primary btn--play" type="button" data-ts="play" aria-pressed="false" disabled>
+            <span class="transport__glyph" aria-hidden="true">▶</span> Play
+          </button>
+          <button class="btn" type="button" data-ts="pause" disabled>
+            <span class="transport__glyph" aria-hidden="true">❚❚</span> Pause
+          </button>
+          <button class="btn btn--stop" type="button" data-ts="stop" disabled>
+            <span class="transport__glyph" aria-hidden="true">■</span> Stop
+          </button>
+        </div>
+
+        <div class="transport__export">
+          <button class="btn" type="button" data-ts="export" disabled>Export WAV</button>
+          <div class="export-progress" data-ts="export-progress" hidden>
+            <div class="export-progress__bar"><span data-ts="export-bar"></span></div>
+            <span class="mono" data-ts="export-pct">0%</span>
+          </div>
+        </div>
+
+        <p class="status mono" data-ts="status" role="status" aria-live="polite">Ready. Choose an audio file to begin.</p>
+      </div>
+
+      <!-- Right: tempo controls -->
+      <div class="stack">
+        <div class="field">
+          <label class="label" for="ts-tempo">Tempo</label>
+          <div class="control-row">
+            <input
+              class="input input--readout mono"
+              id="ts-tempo-num"
+              data-ts="tempo-num"
+              type="number"
+              min="0.25"
+              max="4"
+              step="0.05"
+              value="1"
+              inputmode="decimal"
+              aria-label="Tempo multiplier, 0.25 to 4"
+            />
+            <span class="control-row__out">
+              <span class="mono control-row__big" data-ts="tempo-pct">100 %</span>
+              <span class="label">of original</span>
+            </span>
+          </div>
+          <input
+            class="slider"
+            id="ts-tempo"
+            data-ts="tempo"
+            type="range"
+            min="0.25"
+            max="4"
+            step="0.05"
+            value="1"
+            aria-label="Tempo multiplier"
+          />
+          <div class="slider-scale mono"><span>0.25×</span><span>0.5×</span><span>1×</span><span>2×</span><span>4×</span></div>
+        </div>
+
+        <div class="field">
+          <span class="label" id="ts-presets-label">Presets · result length</span>
+          <div class="presets" role="group" aria-labelledby="ts-presets-label">
+            {
+              presets.map((preset) => (
+                <button class="preset" type="button" data-ts="preset" data-value={preset.value}>
+                  <span class="preset__label">{preset.label}</span>
+                  <span class="preset__dur mono" data-ts="preset-dur" data-value={preset.value}> - : - </span>
+                </button>
+              ))
+            }
+          </div>
+        </div>
+
+        <div class="field">
+          <span class="label">Pitch</span>
+          <button class="toggle" type="button" data-ts="preserve" aria-pressed="true" aria-describedby="ts-pitch-help">
+            <span class="led" data-on="true" aria-hidden="true"></span>
+            <span class="toggle__text">Preserve pitch</span>
+          </button>
+          <p class="hint" id="ts-pitch-help" data-ts="pitch-help">
+            On - overlap-add resynthesis changes the length only; the pitch stays put.
+          </p>
+        </div>
+
+        <div class="field">
+          <span class="label">Loop</span>
+          <div class="loop-row">
+            <button class="toggle" type="button" data-ts="loop" aria-pressed="false">
+              <span class="led" aria-hidden="true"></span>
+              <span class="toggle__text">Loop section</span>
+            </button>
+            <button class="btn btn--sm btn--ghost" type="button" data-ts="loop-reset" disabled>Reset loop to whole file</button>
+          </div>
+          <p class="hint">
+            Loop <span class="mono" data-ts="loop-start"> - </span> → <span class="mono" data-ts="loop-end"> - </span>
+            · length <span class="mono" data-ts="loop-len"> - </span>
+          </p>
+        </div>
+
+        <div class="stat-grid">
+          <div class="stat"><p class="stat__k">Source length</p><p class="stat__v" data-ts="srclen"> - </p></div>
+          <div class="stat"><p class="stat__k">Result length</p><p class="stat__v" data-ts="outlen"> - </p></div>
+          <div class="stat"><p class="stat__k">Pitch ratio</p><p class="stat__v" data-ts="pitchratio">1.0000</p></div>
+          <div class="stat"><p class="stat__k">Tempo ratio</p><p class="stat__v" data-ts="temporatio">1.0000</p></div>
+        </div>
+
+        <div class="notice notice--info">
+          <span class="notice__icon" aria-hidden="true">i</span>
+          <p class="notice__body">
+            With <strong>Preserve pitch</strong> off, the clip is resampled like a tape played faster - exactly the
+            chipmunk effect, and the length still changes. It is the same maths; only the pitch handling differs.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================= Reference ========================= -->
+  <Panel eyebrow="Reference" title="What time stretching is for">
+    <div class="two-col">
+      <div class="prose-tech">
+        <h2>Slowing down to learn, speeding up to listen</h2>
+        <p>
+          Practising an instrument from a recording is impossible at full speed if the passage is faster than you can
+          play it. Slowing it to 0.5× or 0.75× while the pitch stays put lets you hear every note in the original key and
+          play along; a loop over two bars makes the drill. Transcribers work the same way - half speed, small loops,
+          no key change to confuse the ear. In the other direction, 1.25×–2× is the standard for spoken audio: podcasts,
+          lectures and audiobooks, where the pitch can take a little roughness in exchange for finishing sooner.
+        </p>
+        <h2>Why a naive speed change shifts the pitch</h2>
+        <p>
+          Sound is a pressure wave, and pitch <em>is</em> how fast it repeats. Play a recording faster by reading its
+          samples more quickly and every cycle finishes sooner: the frequency rises in direct proportion. At 1.5× a
+          440&nbsp;Hz note becomes 660&nbsp;Hz - a fifth up - and at 2× it is 880&nbsp;Hz, an octave up. That is why
+          speed-adjusted video so often sounds like chipmunks. Pitch and duration are tied together in a resample,
+          because resampling changes the time axis itself. To move one without the other you have to rebuild the
+          waveform at a new length rather than read it faster, which is exactly what overlap-add resynthesis does.
+        </p>
+        <h2>Tempo, duration and pitch are three settings</h2>
+        <ul>
+          <li><span class="mono">tempoRatio</span> sets the output length: <span class="mono">sourceLength / tempoRatio</span>.</li>
+          <li><span class="mono">pitchRatio</span> sets the frequency scale, independently.</li>
+          <li>Preserve pitch on → <span class="mono">pitchRatio = 1</span>. Off → <span class="mono">pitchRatio = tempoRatio</span> (a resample).</li>
+        </ul>
+      </div>
+      <table class="table-tech">
+        <thead>
+          <tr><th>Tempo</th><th>3-min clip becomes</th><th>Typical use</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="mono">0.25×</td><td class="mono">12:00</td><td>Note-by-note transcription of very fast playing.</td></tr>
+          <tr><td class="mono">0.5×</td><td class="mono">6:00</td><td>Slow practice; the usual first pass at a solo.</td></tr>
+          <tr><td class="mono">0.75×</td><td class="mono">4:00</td><td>Learning a part just under tempo.</td></tr>
+          <tr><td class="mono">1×</td><td class="mono">3:00</td><td>Original - no processing.</td></tr>
+          <tr><td class="mono">1.25×</td><td class="mono">2:24</td><td>Comfortable podcast speed-up.</td></tr>
+          <tr><td class="mono">1.5×</td><td class="mono">2:00</td><td>Fast listening; still intelligible.</td></tr>
+          <tr><td class="mono">2×</td><td class="mono">1:30</td><td>Skimming; consonants start to blur.</td></tr>
+          <tr><td class="mono">4×</td><td class="mono">0:45</td><td>Extreme - heavy smearing, use only to locate a passage.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </Panel>
+
+  <div class="two-col">
+    <Panel eyebrow="FAQ" title="Time stretching questions">
+      <div class="faq">
+        {
+          faqs.map((faq) => (
+            <details>
+              <summary>{faq.q}</summary>
+              <p>{faq.a}</p>
+            </details>
+          ))
+        }
+      </div>
+    </Panel>
+
+    <Panel eyebrow="More tools" title="Related tools">
+      <div class="card-grid">
+        {
+          related.map((item) => (
+            <a class="card" href={item.href}>
+              <p class="card__t">{item.title}</p>
+              <p class="card__d">{item.tagline}</p>
+            </a>
+          ))
+        }
+      </div>
+    </Panel>
+  </div>
+
+  <script>
+    import '../scripts/time-stretcher';
+  </script>
+</Base>
+
+<style>
+  .hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(260px, 1fr);
+    gap: 20px;
+    align-items: start;
+    margin-bottom: 18px;
+  }
+  @media (max-width: 900px) {
+    .hero { grid-template-columns: minmax(0, 1fr); }
+  }
+  .hero h1 { font-size: clamp(1.6rem, 3.2vw, 2.1rem); margin: 6px 0 8px; }
+  .hero__lead { color: var(--color-ink-2); max-width: 68ch; margin: 0; font-size: 14.5px; }
+  .notice__body { margin: 0; }
+
+  .ts__body {
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+    gap: 20px;
+  }
+  @media (max-width: 1000px) {
+    .ts__body { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  .stack { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+
+  .drop {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 22px 14px;
+    text-align: center;
+    background: var(--color-void);
+    border: 1px dashed var(--color-line-3);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: border-color 120ms ease, background 120ms ease;
+  }
+  .drop:hover, .drop[data-over='true'] {
+    border-color: var(--color-signal);
+    background: color-mix(in oklab, var(--color-signal) 7%, var(--color-void));
+  }
+  .drop__glyph { font-size: 20px; color: var(--color-signal); }
+  .drop__title { font-size: 13.5px; font-weight: 500; }
+  .drop__hint { font-size: 10.5px; color: var(--color-ink-4); }
+
+  .ts-scope { height: 150px; }
+  .ts-scope canvas { cursor: crosshair; touch-action: none; }
+
+  .ts-time { font-size: 12.5px; color: var(--color-ink-2); margin: 0; }
+
+  .transport { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .transport__glyph { font-size: 9px; }
+  .transport__export { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+
+  .export-progress { display: flex; align-items: center; gap: 8px; flex: 1 1 160px; min-width: 140px; }
+  .export-progress__bar {
+    flex: 1 1 auto;
+    height: 5px;
+    background: var(--color-panel-3);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .export-progress__bar span {
+    display: block;
+    height: 100%;
+    width: 0;
+    background: var(--color-signal);
+    transition: width 120ms linear;
+  }
+  .export-progress .mono { font-size: 11px; color: var(--color-ink-3); }
+
+  .control-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .control-row .input { width: auto; max-width: 130px; }
+  .control-row__out { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; margin-left: auto; }
+  .control-row__big { font-size: 18px; color: var(--color-signal); }
+
+  .slider-scale {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--color-ink-4);
+    margin-top: -2px;
+  }
+
+  .presets { display: flex; flex-wrap: wrap; gap: 6px; }
+  .preset {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 7px;
+    padding: 5px 10px;
+    background: var(--color-panel-2);
+    border: 1px solid var(--color-line);
+    border-radius: 999px;
+    color: var(--color-ink-2);
+    cursor: pointer;
+    font-size: 12px;
+  }
+  .preset:hover { border-color: var(--color-signal); color: var(--color-signal); }
+  .preset[aria-pressed='true'] {
+    border-color: color-mix(in oklab, var(--color-signal) 46%, transparent);
+    background: color-mix(in oklab, var(--color-signal) 12%, var(--color-panel-3));
+    color: var(--color-signal);
+    font-weight: 600;
+  }
+  .preset__dur { font-size: 11px; color: var(--color-ink-4); }
+  .preset:hover .preset__dur, .preset[aria-pressed='true'] .preset__dur { color: currentColor; }
+
+  .toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    align-self: flex-start;
+    padding: 7px 13px;
+    background: var(--color-void);
+    border: 1px solid var(--color-line-2);
+    border-radius: var(--radius-sm);
+    color: var(--color-ink-2);
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .toggle:hover { border-color: var(--color-line-3); color: var(--color-ink); }
+  .toggle[aria-pressed='true'] {
+    border-color: color-mix(in oklab, var(--color-signal) 46%, transparent);
+    background: color-mix(in oklab, var(--color-signal) 12%, var(--color-panel-2));
+    color: var(--color-signal);
+    font-weight: 600;
+  }
+
+  .loop-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+  .hint { margin: 0; font-size: 11.5px; color: var(--color-ink-4); line-height: 1.6; }
+
+  .status { font-size: 11.5px; color: var(--color-ink-3); margin: 0; min-height: 18px; }
+  .status[data-kind='ok'] { color: var(--color-signal); }
+  .status[data-kind='error'] { color: var(--color-danger); }
+  .status[data-kind='warn'] { color: var(--color-warn); }
+
+  .two-col {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 14px;
+    margin-top: 14px;
+  }
+  @media (max-width: 1000px) {
+    .two-col { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  .faq details { border-bottom: 1px solid var(--color-line); padding: 10px 0; }
+  .faq details:first-of-type { padding-top: 0; }
+  .faq summary {
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 13.5px;
+    list-style: none;
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+  }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary::before { content: "+"; font-family: var(--font-mono); color: var(--color-signal); flex: none; }
+  .faq details[open] summary::before { content: "−"; }
+  .faq details p { margin: 8px 0 0 18px; font-size: 13px; color: var(--color-ink-2); line-height: 1.65; }
+</style>

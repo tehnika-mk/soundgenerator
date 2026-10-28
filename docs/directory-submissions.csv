@@ -1,0 +1,62 @@
+directory,submit_url,status,note
+FutureTools,https://futuretools.io/submit-a-tool,captcha-blocked,"Public form, no account, no fee. Fields filled and validated; submission refused with 'Please complete the captcha before submitting.' Cloudflare Turnstile widget never renders in a headless browser."
+TopAI.tools,https://topai.tools/submit,cloudflare-wall,"Cloudflare ""Just a moment..."" bot check; no form reachable headless."
+AI Valley,https://aivalley.ai/submit-tool,form-error,"Open public form, filled and submitted, but Contact Form 7 returned ""There was an error trying to send your message. Please try again later."" (site-side mailer error)."
+OpenFuture,https://openfuture.ai/submit-tool,cloudflare-wall,"Cloudflare ""Just a moment..."" bot check; no form reachable headless."
+Insidr.ai,https://www.insidr.ai/submit-tools/,submitted-unconfirmed,"Skip to content Insidr.ai AI Tools Programs AI Community AI Solutions Contact Join Free 500+ AI Tools List SHARE NEW TOOLS Submit AI Tools Submit new AI tools that we should include. If approved, we w | filled=[['desc', "
+ToolPilot,https://www.toolpilot.ai/pages/submit-your-ai-tool,no-form,"Shopify landing page, no submission form. Free listings now require a reciprocal badge/link on your own site; paid tiers exist. Not submitted."
+AI Depot,https://aidepot.co/submit/start,submitted-unconfirmed,"Back Kintu Labs AI Depot US$19.00 Get your startup approved on AI Depot within 24-hours. OR Contact information Email Payment method Card Card information Accepted card types: Visa, Mastercard, Americ | NOCLICK None | [["
+AI Tools Directory,https://aitoolsdirectory.com/submit-tool,submitted,"Paperform behind the site embed (aitool.paperform.co). All fields filled, Pricing=Free, ad-space=NO, submitted. Confirmed page: /tool-submitted"
+AI Tool Trek,https://aitooltrek.com/submit,no-form,❤️ VoxScreen Your one-stop AI Interview tool. ❤️ SPONSORED Discover Category AI News login EN Submit Your Tool Discover Discover Category Category AI News AI News Submit Your AI To | filled=None
+AI With Me,https://aiwith.me/submit/,captcha-blocked,Public form page but a captcha element gates it; headless browser cannot solve.
+aitools.inc,https://aitools.inc/submit,no-form,🤖 Join our free community of 28K AI automation builders and operators AI Tools Discover AI Tools Learn AI Submit Tool Free Sign Up Get Your Tool In Front of AI Enthusiasts Every da | filled=None
+Foundr AI,https://foundr.ai/submit,needs-account,Only a magic-link email sign-in form; tool submission requires a Foundr account.
+What The AI,https://whattheai.tech/submit,no-form,NAV:https://whattheai.tech/submit | Tools Discover Kids Academy Advertise 🔥 Newsletter العربية Sign In Sign in to your account Or create a new account Sign in with Google Or sign in with
+AI Wizard,https://aiwizard.ai/submit-new,needs-account,password field present
+AI Tool Board,https://aitoolboard.com/submit,submitted-unconfirmed,"All fields filled (name, short+long desc, URL, logo URL, Free Listing radio, category=Audio Generator, pricing=Free), og.png uploaded to the required Tool Image field, Submit Tool clicked. Confirmation was NOT captured: "
+AI Navbar,https://ainavbar.ai/submit,captcha-blocked,captcha element present
+Not Human Search,https://nothumansearch.ai/submit,no-form,"NOCTA | Account Not Human Search Find services AI agents can actually use. Search the agentic web for free. Compare services, APIs, and tools by machine-reada"
+Thank John,https://www.thankjohn.com/tool/submitmystartup,no-form,NAV:https://www.thankjohn.com/get-started | Thank John Explore About Submit Tool Choose Your Plan Select the best option to get your AI tool listed Free $0 Includes Get 1 dofollow link in this s | None | None
+AiToolex,https://aitoolex.com/submit-ai-tool,no-form,NAV:https://aitoolex.com/submit | Welcome back Email Password Forgot password? Login Login with Google Login with GitHub Don't have an account? Sign up | None | None
+AI Toolz Dir,https://www.aitoolzdir.com/submit,no-form,"Public form with a free path, but the category picker is a custom dropdown that would not open for an automated click; the free submit path needs the category chosen by hand. Fields: name, url, logo, shortDesc, longDesc,"
+Siteefy,https://siteefy.com/submit-tool,no-form,"NAV:https://siteefy.com/submit-tool | Categories Tasks Saved Submit your tool Sign in Tool directory submission Submit your tool to the Siteefy directory Siteefy accepts AI tools, SaaS pro | None | None"
+LLM Relevance,https://llmrelevance.com/submit,skipped-offtopic,Directory is specifically AI/SEO marketing tools; an audio signal generator is off-topic and would be declined.
+Uneed,https://www.uneed.best/submit-a-tool,no-form,NOCTA | Launchpad Community Pricing Products More Log in Register Submit your Product Let our robots do the work and gather all your product's data for you 🤩. | None | None
+ToolScout,https://toolscout.ai/submit,no-form,NOCTA | Tools News Repos Search AI tools... Saved tools Submit a tool Get featured Sign in Submit your AI Tool List your AI tool on ToolScout and get it in fr | None | None
+AI Tools List,https://aitoolslist.io/submit-ai-tool/,no-form,NAV:https://aitoolslist.io/submit-ai-tool/ |  Community Learn BUSINESS IDEAS DEALS Submit your AI tool Submit your tool and we will try to add it as soon as we can if it fits our criteria. If you | None
+RankYourAI,https://rankyourai.com/p/submit/,no-form,NAV:https://rankyourai.com/p/submit/ | Home Submit Tool Add your AI Tool to RankYourAI Promote your AI tool today and attract potential users Featured Listing ✅ SEO DoFollow Backlink ✅ List | None
+AI Tools Zone,https://aitoolszone.com/submit/,form-error,[] | NOCLICK NOBUTTON
+AIToolNet,https://aitoolnet.com/submit,cloudflare-wall,aitoolnet.com Performing security verification This website uses a security service to protect against malicious bots. This page is displayed while the website verifies you are not | None
+Best-AI.org,https://best-ai.org/submit-tool,no-form,"NOCTA | Best-AI.org Home Submit Tool Free Submission Get Your AI Tool Discovered Submit your AI tool to reach thousands of developers, marketers, and professi | None"
+Easy With AI,https://easywithai.com/submit-tool/,no-form,"NOCTA | Sorry, you have been blocked You are unable to access easywithai.com Why have I been blocked? This website is using a security service to protect itse | None"
+SaaSHub,https://www.saashub.com/submit,no-form,NOCTA | Software Alternatives & Startups Register | Login Tools & Categories Feature My Product Submit Product SaaSHub Submit Learn more » This is our free ma | None
+Launching Next,https://www.launchingnext.com/submit/,submitted-unconfirmed,We use cookies to enhance your experience. Cookie Policy. Accept all Reject non-essential Preferences Launching Next Browse Trending Blog Submit Startup Submit Your Project We've relied on startups an | REALCLICK <INPUT>
+Startup Stash,https://startupstash.com/add-listing/,captcha-blocked,captcha element present | None
+PitchWall,https://pitchwall.co/submit,no-form,No submission form on the page; paid/sponsored placement only.
+Dang.ai,https://dang.ai/submit,form-error,"[] | REALCLICK <BUTTON> ""Subscribe"""
+AI Top Tools,https://aitoptools.com/submit,submitted-unconfirmed,"Submit AI Tool Search 404 Page not found The page you're looking for doesn't exist or has been moved. Go home Top 100 Tools AITopTools — The Original AI Tools Directory Since 2023 Explore a huge, alwa | NOCLICK NOBUTTON"
+AI Hunted,https://aihunted.com/submit,dead-domain,aihunted.com is a parked domain for sale; the directory no longer exists.
+Toolata,https://toolata.com/submit,dead-domain,toolata.com is a GoDaddy parked page; directory gone.
+AI Apps,https://aiapps.ai/submit,nav-error,RuntimeError: Runtime.evaluate timed out; expression: document.readyState
+ToolList AI,https://toollist.ai/submit,no-form,Redirects to /v4/go-submit; no submission form rendered.
+AI Of The Day,https://aioftheday.com/submit,paid-only,Only paid placement (bi-weekly or monthly) behind a Google sign-in; no free listing.
+MicroSaaS Directory,https://microsaasdirectory.com/submit,needs-account,Password-protected submission; account required.
+1000.tools,https://1000.tools/submit,todo,
+Fazier,https://fazier.com/submit,needs-account,Join / Sign in required before launching.
+TinyLaunch,https://www.tinylaunch.com/submit,needs-account,Email login wall; account required.
+Toolify,https://www.toolify.ai/submit,todo,
+AI Scout,https://aiscout.net/submit,nav-error,_IPCResponseTimeout: Page.navigate timed out after 5s waiting for the daemon
+AI Tool Hunt,https://www.aitoolhunt.com/submit,nav-error,_IPCResponseTimeout: Page.navigate timed out after 5s waiting for the daemon
+AI Best Top,https://aibesttop.com/submit,todo,
+AI Just Better,https://aijustbetter.com/submit,todo,
+AI Tech Viral,https://aitechviral.com/submit,todo,
+AI X Collection,https://aixcollection.com/submit,todo,
+Startup AI Deas,https://startupaideas.com/submit,todo,
+Latest AI Updates,https://latestaiupdates.com/submit,todo,
+AI Tools Guide,https://aitoolsguide.com/submit,todo,
+Good AI Tools,https://goodaitools.com/submit,todo,
+Submit AI Tools,https://submitaitools.org/submit-your-ai-tool/,todo,
+AI Directories,https://aidirectori.es/submit,todo,
+AlternativeTo,https://alternativeto.net/manage/new/,todo,
+DevHunt,https://devhunt.org/submit,todo,
+SaaSworthy,https://www.saasworthy.com/vendor,todo,

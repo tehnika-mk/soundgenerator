@@ -1,0 +1,115 @@
+---
+import { SITE, CATEGORY_ORDER, toolsByCategory } from '../data/tools';
+
+const year = new Date().getFullYear();
+---
+
+<footer class="footer">
+  <div class="footer__grid">
+    <div>
+      <p class="footer__brand mono">SOUNDGENERATOR.APP</p>
+      <p class="footer__note">
+        {SITE.tagline} All signal generation happens on your device using the Web Audio API - there is no server
+        rendering audio and nothing is uploaded.
+      </p>
+    </div>
+
+    {CATEGORY_ORDER.slice(0, 3).map((category) => (
+      <div>
+        <p class="label">{category}</p>
+        <ul>
+          {toolsByCategory(category)
+            .filter((tool) => !tool.content)
+            .slice(0, 5)
+            .map((tool) => (
+              <li><a href={tool.href}>{tool.nav}</a></li>
+            ))}
+        </ul>
+      </div>
+    ))}
+
+    <div>
+      <p class="label">Site</p>
+      <ul>
+        <li><a href="/theory">Acoustic theory</a></li>
+        <li><a href="/about">About</a></li>
+        <li><a href="/privacy">Privacy</a></li>
+        <li><a href="/sitemap">Sitemap</a></li>
+      </ul>
+    </div>
+  </div>
+
+  <p class="footer__legal mono">
+    © {year} {SITE.domain} · Built with Astro · Audio via the Web Audio API · <span class="footer__warn">Play at low volume, pure tones can damage hearing and equipment.</span>
+  </p>
+  <p class="footer__credit">
+    <a href={SITE.credit.href} rel="noopener">{SITE.credit.label}</a>
+  </p>
+
+  <p class="footer__badge">
+    <a href="https://www.tinyshelf.co/?ref=soundgenerator.app" title="Featured on TinyShelf">
+      <img
+        src="https://www.tinyshelf.co/badge/tinyshelf-badge-light-amber-1cdea1ce.svg"
+        alt="Featured on TinyShelf"
+        width="216"
+        height="64"
+        loading="lazy"
+        decoding="async"
+      />
+    </a>
+  </p>
+</footer>
+
+<style>
+  .footer {
+    border-top: 1px solid var(--color-line);
+    margin-top: 40px;
+    padding: 26px 0 40px;
+  }
+  .footer__grid {
+    display: grid;
+    gap: 22px;
+    grid-template-columns: minmax(220px, 1.6fr) repeat(4, minmax(110px, 1fr));
+  }
+  @media (max-width: 900px) {
+    .footer__grid { grid-template-columns: repeat(2, minmax(140px, 1fr)); }
+  }
+  .footer__brand {
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    color: var(--color-ink-2);
+    margin: 0 0 6px;
+  }
+  .footer__note {
+    font-size: 12px;
+    color: var(--color-ink-4);
+    line-height: 1.55;
+    max-width: 46ch;
+    margin: 0;
+  }
+  ul { list-style: none; margin: 6px 0 0; padding: 0; }
+  li { margin: 3px 0; }
+  li a { font-size: 12.5px; color: var(--color-ink-3); }
+  li a:hover { color: var(--color-signal); }
+  .footer__legal {
+    margin: 26px 0 0;
+    padding-top: 14px;
+    border-top: 1px solid var(--color-line);
+    font-size: 11px;
+    color: var(--color-ink-4);
+  }
+  .footer__warn { color: var(--color-warn); }
+  .footer__credit {
+    margin: 12px 0 0;
+    font-size: 12px;
+    color: var(--color-ink-3);
+  }
+  .footer__credit a {
+    color: var(--color-ink-2);
+    border-bottom: 1px solid var(--color-line-3);
+    padding-bottom: 1px;
+  }
+  .footer__credit a:hover { color: var(--color-signal); border-color: var(--color-signal); }
+  .footer__badge { margin: 14px 0 0; }
+  .footer__badge img { display: block; width: 216px; height: 64px; }
+</style>

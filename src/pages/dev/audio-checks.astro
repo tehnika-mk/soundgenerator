@@ -1,0 +1,299 @@
+---
+/**
+ * Developer-only DSP verification harness.
+ *
+ * Renders signals through the same modules the site uses, measures the result
+ * numerically (frequency by zero crossings, harmonics by Goertzel, WAV bytes by
+ * hand) and reports pass/fail. Driven by tools/audio_tests.mjs.
+ *
+ * Excluded from the sitemap and marked noindex; not linked from anywhere.
+ */
+import Base from '../../layouts/Base.astro';
+---
+
+<Base
+  title="Audio DSP checks"
+  description="Internal verification harness for the tone, noise, sweep and WAV export maths."
+  noindex
+>
+  <div class="panel">
+    <header class="panel__head">
+      <span class="label">Verification</span>
+      <span class="mono" id="summary">running…</span>
+    </header>
+    <div class="panel__body">
+      <p class="prose-tech">
+        Each row renders a signal offline with the production modules and measures the result. Nothing here is
+        asserted by hand: the numbers come from <code>src/lib/audio/analysis.ts</code> and
+        <code>src/lib/audio/wav.ts</code>.
+      </p>
+      <table class="table-tech" id="results">
+        <thead>
+          <tr><th>Check</th><th>Expected</th><th>Measured</th><th>Result</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    import { renderTone, renderNoise, renderSweep, encodeWav } from '../../lib/audio/wav';
+    import { dtmfFrequencies, midiToFreq, freqToMidi, describeFrequency } from '../../lib/audio/notes';
+    import { positionToGain, gainToDb } from '../../lib/audio/engine';
+    import { estimateFrequencyIn, magnitudeDb, bandLevelDb, peak, rms, slice } from '../../lib/audio/analysis';
+    import { renderStretched } from '../../lib/tools/stretch-engine';
+
+    type Check = { name: string; expected: string; measured: string; pass: boolean };
+
+    const results: Check[] = [];
+
+    function record(name: string, expected: string, measured: string, pass: boolean) {
+      results.push({ name, expected, measured: `measured`, pass });
+      results[results.length - 1].measured = measured;
+    }
+
+    function near(actual: number, target: number, tolerance: number): boolean {
+      return Math.abs(actual - target) <= tolerance;
+    }
+
+    function relative(actual: number, target: number, fraction: number): boolean {
+      return Math.abs(actual - target) <= Math.abs(target) * fraction;
+    }
+
+    async function run() {
+      // ---------- pure tones -------------------------------------------
+      const sine = await renderTone({ frequency: 440, seconds: 1, waveform: 'sine', gain: 0.5, sampleRate: 44100 });
+      const sineFreq = estimateFrequencyIn(sine.getChannelData(0), sine.sampleRate, 0.1, 0.9);
+      record('Sine 440 Hz - frequency', '440 Hz ± 3', `${sineFreq.toFixed(2)} Hz`, near(sineFreq, 440, 3));
+
+      const sinePeak = peak(sine.getChannelData(0));
+      record('Sine 440 Hz - amplitude', '0.5 ± 0.03', sinePeak.toFixed(4), near(sinePeak, 0.5, 0.03));
+
+      const head = peak(slice(sine.getChannelData(0), sine.sampleRate, 0, 0.002));
+      const tail = peak(slice(sine.getChannelData(0), sine.sampleRate, 0.998, 1));
+      const firstSample = Math.abs(sine.getChannelData(0)[0]);
+      record(
+        'Sine - click-free edges',
+        'first sample ~0, 10 ms fade in and out',
+        `sample 0 = ${firstSample.toFixed(5)}, head ${head.toFixed(3)}, tail ${tail.toFixed(3)}`,
+        firstSample < 0.01 && head < 0.12 && tail < 0.12,
+      );
+
+      const square = await renderTone({ frequency: 200, seconds: 0.5, waveform: 'square', gain: 0.5 });
+      const sq = square.getChannelData(0);
+      const sqF = magnitudeDb(sq, square.sampleRate, 200);
+      const sq2 = magnitudeDb(sq, square.sampleRate, 400);
+      const sq3 = magnitudeDb(sq, square.sampleRate, 600);
+      record(
+        'Square - odd harmonics only',
+        '2nd ≥ 30 dB below fundamental, 3rd within 15 dB',
+        `f0 ${sqF.toFixed(1)} dB, 2f ${sq2.toFixed(1)} dB, 3f ${sq3.toFixed(1)} dB`,
+        sq2 < sqF - 30 && sq3 > sqF - 15,
+      );
+
+      const saw = await renderTone({ frequency: 200, seconds: 0.5, waveform: 'sawtooth', gain: 0.5 });
+      const sawF = magnitudeDb(saw.getChannelData(0), saw.sampleRate, 200);
+      const saw2 = magnitudeDb(saw.getChannelData(0), saw.sampleRate, 400);
+      record('Sawtooth - even harmonics present', '2nd within 15 dB of fundamental', `${(saw2 - sawF).toFixed(1)} dB below f0`, saw2 > sawF - 15);
+
+      const tri = await renderTone({ frequency: 200, seconds: 0.5, waveform: 'triangle', gain: 0.5 });
+      const triF = magnitudeDb(tri.getChannelData(0), tri.sampleRate, 200);
+      const tri2 = magnitudeDb(tri.getChannelData(0), tri.sampleRate, 400);
+      record('Triangle - even harmonics suppressed', '2nd ≥ 30 dB below fundamental', `${(tri2 - triF).toFixed(1)} dB below f0`, tri2 < triF - 30);
+
+      // ---------- noise ------------------------------------------------
+      const white = await renderNoise({ color: 'white', seconds: 1, gain: 0.4 });
+      const whiteData = white.getChannelData(0);
+      const whiteLow = bandLevelDb(whiteData, white.sampleRate, 100, 400);
+      const whiteHigh = bandLevelDb(whiteData, white.sampleRate, 3000, 8000);
+      record(
+        'White noise - flat spectrum',
+        '100–400 Hz within 6 dB of 3–8 kHz',
+        `${(whiteLow - whiteHigh).toFixed(1)} dB tilt`,
+        Math.abs(whiteLow - whiteHigh) < 6,
+      );
+      const whiteRms = rms(whiteData);
+      record('White noise - level', 'RMS 0.10 – 0.40 at gain 0.4', whiteRms.toFixed(3), whiteRms > 0.1 && whiteRms < 0.4);
+
+      const pink = await renderNoise({ color: 'pink', seconds: 1, gain: 0.4 });
+      const pinkTilt = bandLevelDb(pink.getChannelData(0), pink.sampleRate, 100, 400) - bandLevelDb(pink.getChannelData(0), pink.sampleRate, 3000, 8000);
+      record(
+        'Pink noise - about -3 dB/octave',
+        '8 – 30 dB tilt over the 100 Hz → 8 kHz span',
+        `${pinkTilt.toFixed(1)} dB`,
+        pinkTilt > 8 && pinkTilt < 30,
+      );
+
+      const brown = await renderNoise({ color: 'brown', seconds: 1, gain: 0.4 });
+      const brownTilt = bandLevelDb(brown.getChannelData(0), brown.sampleRate, 100, 400) - bandLevelDb(brown.getChannelData(0), brown.sampleRate, 3000, 8000);
+      record(
+        'Brown noise - about -6 dB/octave',
+        'at least 6 dB steeper than pink',
+        `${brownTilt.toFixed(1)} dB vs ${pinkTilt.toFixed(1)} dB (pink)`,
+        brownTilt > pinkTilt + 6,
+      );
+
+      // ---------- sweeps ----------------------------------------------
+      const logSweep = await renderSweep({ startHz: 20, endHz: 20000, seconds: 1, ramp: 'exp', startGain: 0.4, endGain: 0.4 });
+      const sweepData = logSweep.getChannelData(0);
+      const lowChunk = estimateFrequencyIn(sweepData, logSweep.sampleRate, 0.05, 0.15);
+      const highChunk = estimateFrequencyIn(sweepData, logSweep.sampleRate, 0.85, 0.95);
+      const expectLow = 20 * Math.pow(1000, 0.1);
+      const expectHigh = 20 * Math.pow(1000, 0.9);
+      record(
+        'Exponential sweep 20 Hz → 20 kHz',
+        `${expectLow.toFixed(0)} Hz at 10%, ${expectHigh.toFixed(0)} Hz at 90%`,
+        `${lowChunk.toFixed(0)} Hz, ${highChunk.toFixed(0)} Hz`,
+        relative(lowChunk, expectLow, 0.25) && relative(highChunk, expectHigh, 0.3),
+      );
+
+      const linSweep = await renderSweep({ startHz: 100, endHz: 1100, seconds: 1, ramp: 'linear', startGain: 0.4, endGain: 0.4 });
+      const midChunk = estimateFrequencyIn(linSweep.getChannelData(0), linSweep.sampleRate, 0.45, 0.55);
+      record('Linear sweep 100 → 1100 Hz', '600 Hz ± 15%', `${midChunk.toFixed(0)} Hz`, relative(midChunk, 600, 0.15));
+
+      // ---------- pitch shift / time stretch (WSOLA worklet) -----------
+      // A 440 Hz sine through the real worklet: pitch must move by the ratio,
+      // tempo must move the duration and leave pitch alone.
+      const stretchSource = await (async () => {
+        const ctx = new OfflineAudioContext(1, 44100 * 2, 44100);
+        const osc = ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.value = 440;
+        const env = ctx.createGain();
+        env.gain.value = 0.5;
+        osc.connect(env).connect(ctx.destination);
+        osc.start(0);
+        osc.stop(2);
+        return ctx.startRendering();
+      })();
+
+      const measure = (buffer: AudioBuffer) => {
+        const data = buffer.getChannelData(0);
+        const from = Math.floor(buffer.duration * 0.3 * buffer.sampleRate);
+        const to = Math.floor(buffer.duration * 0.7 * buffer.sampleRate);
+        let crossings = 0;
+        for (let i = from + 1; i < to; i++) {
+          if ((data[i - 1] < 0 && data[i] >= 0) || (data[i - 1] > 0 && data[i] <= 0)) crossings++;
+        }
+        return { hz: crossings / 2 / ((to - from) / buffer.sampleRate), duration: buffer.duration };
+      };
+
+      const up = measure(await renderStretched({ buffer: stretchSource, pitchRatio: 2, tempoRatio: 1 }));
+      record(
+        'Pitch shift +12 semitones',
+        '880 Hz, duration unchanged at 2.00 s',
+        `${up.hz.toFixed(1)} Hz, ${up.duration.toFixed(2)} s`,
+        near(up.hz, 880, 3) && near(up.duration, 2, 0.05),
+      );
+
+      const down = measure(await renderStretched({ buffer: stretchSource, pitchRatio: 0.5, tempoRatio: 1 }));
+      record(
+        'Pitch shift -12 semitones',
+        '220 Hz, duration unchanged at 2.00 s',
+        `${down.hz.toFixed(1)} Hz, ${down.duration.toFixed(2)} s`,
+        near(down.hz, 220, 3) && near(down.duration, 2, 0.05),
+      );
+
+      const slow = measure(await renderStretched({ buffer: stretchSource, pitchRatio: 1, tempoRatio: 0.5 }));
+      record(
+        'Time stretch 0.5x',
+        '440 Hz, duration doubled to 4.00 s',
+        `${slow.hz.toFixed(1)} Hz, ${slow.duration.toFixed(2)} s`,
+        near(slow.hz, 440, 3) && near(slow.duration, 4, 0.05),
+      );
+
+      const fast = measure(await renderStretched({ buffer: stretchSource, pitchRatio: 1, tempoRatio: 2 }));
+      record(
+        'Time stretch 2x',
+        '440 Hz, duration halved to 1.00 s',
+        `${fast.hz.toFixed(1)} Hz, ${fast.duration.toFixed(2)} s`,
+        near(fast.hz, 440, 4) && near(fast.duration, 1, 0.05),
+      );
+
+      // ---------- WAV encoding ----------------------------------------
+      const blob = encodeWav(sine);
+      const bytes = new Uint8Array(await blob.arrayBuffer());
+      const view = new DataView(bytes.buffer);
+      const magic = String.fromCharCode(bytes[0], bytes[1], bytes[2], bytes[3]) + String.fromCharCode(bytes[8], bytes[9], bytes[10], bytes[11]);
+      const channels = view.getUint16(22, true);
+      const rate = view.getUint32(24, true);
+      const bits = view.getUint16(34, true);
+      const dataSize = view.getUint32(40, true);
+      record(
+        'WAV export - header',
+        'RIFF/WAVE, mono, 44100 Hz, 16-bit',
+        `${magic}, ${channels} ch, ${rate} Hz, ${bits}-bit, ${(dataSize / 1024).toFixed(0)} KB`,
+        magic === 'RIFFWAVE' && channels === 1 && rate === 44100 && bits === 16,
+      );
+
+      let maxInt = 0;
+      for (let i = 44; i + 1 < bytes.length; i += 2) maxInt = Math.max(maxInt, Math.abs(view.getInt16(i, true)));
+      const expectedMax = Math.round(0.5 * 32767);
+      record('WAV export - amplitude', `±${expectedMax} (16-bit)`, `${maxInt}`, relative(maxInt, expectedMax, 0.03));
+
+      // ---------- music maths and mappings ----------------------------
+      const a4 = midiToFreq(69);
+      const a3 = midiToFreq(57);
+      record(
+        'Equal temperament',
+        'A4 = 440 Hz, A3 = 220 Hz, freqToMidi(440) = 69',
+        `A4 ${a4}, A3 ${a3}, midi(${440}) = ${freqToMidi(440)}`,
+        a4 === 440 && near(a3, 220, 0.001) && freqToMidi(440) === 69,
+      );
+      const detuned = describeFrequency(432, 440);
+      record('Cents maths', '432 Hz is 31.8 cents below 440 Hz', `${detuned.name}, ${detuned.cents} cents`, near(detuned.cents, -32, 1));
+      const note880 = describeFrequency(880, 440);
+      record('Note naming', '880 Hz = A5', `${note880.name} (${note880.cents} cents)`, note880.name === 'A5' && note880.cents === 0);
+
+      const dtmf5 = dtmfFrequencies('5');
+      const dtmfD = dtmfFrequencies('D');
+      record(
+        'DTMF mapping',
+        '5 = 770 + 1336 Hz, D = 941 + 1633 Hz',
+        `5 = ${dtmf5?.join(' + ')} Hz, D = ${dtmfD?.join(' + ')} Hz`,
+        dtmf5?.[0] === 770 && dtmf5?.[1] === 1336 && dtmfD?.[0] === 941 && dtmfD?.[1] === 1633,
+      );
+
+      // ---------- gain mapping ----------------------------------------
+      record(
+        'Master gain taper',
+        'position 50 → 0.25, 100 → 1.0 (-6.02 dB at 0.5)',
+        `${positionToGain(50)}, ${positionToGain(100)}, ${gainToDb(0.5).toFixed(2)} dB`,
+        near(positionToGain(50), 0.25, 0.0001) && positionToGain(100) === 1 && near(gainToDb(0.5), -6.02, 0.02),
+      );
+
+      // ---------- report ----------------------------------------------
+      const passed = results.filter((r) => r.pass).length;
+      const failed = results.length - passed;
+      const tbody = document.querySelector('#results tbody')!;
+      tbody.innerHTML = results
+        .map(
+          (r) =>
+            `<tr><td>${r.name}</td><td class="mono">${r.expected}</td><td class="mono">${r.measured}</td><td class="mono" style="color:${r.pass ? 'var(--color-signal)' : 'var(--color-danger)'}">${r.pass ? 'PASS' : 'FAIL'}</td></tr>`,
+        )
+        .join('');
+      const summary = document.querySelector('#summary')!;
+      summary.textContent = `${passed}/${results.length} passed`;
+      summary.setAttribute('style', `color:${failed ? 'var(--color-danger)' : 'var(--color-signal)'}`);
+
+      (window as unknown as { __audioChecks: unknown }).__audioChecks = {
+        done: true,
+        total: results.length,
+        passed,
+        failed,
+        results,
+      };
+    }
+
+    run().catch((error: Error) => {
+      (window as unknown as { __audioChecks: unknown }).__audioChecks = {
+        done: true,
+        total: 0,
+        passed: 0,
+        failed: 1,
+        error: String(error),
+        results: [],
+      };
+    });
+  </script>
+</Base>

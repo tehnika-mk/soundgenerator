@@ -1,0 +1,42 @@
+---
+/**
+ * Google Analytics (gtag.js).
+ *
+ * Loaded only in production builds, so local development and the QA sweep never
+ * send hits to the live property. The measurement ID lives in `SITE.gaId`.
+ *
+ * Two deliberate choices, both documented in the privacy policy:
+ *  - the tag is injected at runtime rather than sitting in the markup, which is
+ *    what makes the Do Not Track / Global Privacy Control check possible;
+ *  - if the visitor sends DNT or GPC, no request is made to Google at all.
+ *
+ * To collect from every visitor regardless of those signals, set
+ * `respectSignals` to false. If you serve visitors in the EU or UK, ask for
+ * consent before doing that (Consent Mode v2 with analytics_storage denied by
+ * default), otherwise the tag is not lawful there.
+ */
+import { SITE } from '../data/tools';
+
+const gaId = SITE.gaId;
+const enabled = import.meta.env.PROD && Boolean(gaId);
+
+// Built as a plain string and injected with set:html. An inline script that also
+// uses define:vars gets wrapped by the compiler, which drops set:html entirely.
+const snippet = `(function () {
+  var id = "${gaId}";
+  var respectSignals = true;
+  var dnt = navigator.doNotTrack === '1' || window.doNotTrack === '1';
+  var gpc = navigator.globalPrivacyControl === true;
+  if (respectSignals && (dnt || gpc)) return;
+  var loader = document.createElement('script');
+  loader.async = true;
+  loader.src = 'https://www.googletagmanager.com/gtag/js?id=' + encodeURIComponent(id);
+  document.head.appendChild(loader);
+  window.dataLayer = window.dataLayer || [];
+  window.gtag = function gtag() { window.dataLayer.push(arguments); };
+  window.gtag('js', new Date());
+  window.gtag('config', id, { anonymize_ip: true });
+})();`;
+---
+
+{enabled && <script is:inline set:html={snippet} />}

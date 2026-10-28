@@ -1,0 +1,373 @@
+---
+import Base from '../layouts/Base.astro';
+import Panel from '../components/Panel.astro';
+import { DTMF_KEYPAD, DTMF_ROWS, DTMF_COLS, TELEPHONY_TONES } from '../lib/audio/notes';
+import { TOOLS } from '../data/tools';
+
+const tool = TOOLS.find((t) => t.href === '/dtmf')!;
+
+const related = TOOLS.filter((t) =>
+  ['/pips', '/alarm-generator', '/sweep-generator', '/noise-generator'].includes(t.href),
+);
+
+const faqs = [
+  {
+    q: 'What are the row and column frequencies?',
+    a: 'DTMF uses a low group and a high group of four frequencies each. Rows: 697, 770, 852 and 941 Hz. Columns: 1209, 1336, 1477 and 1633 Hz. Every key is the sum of one row frequency and one column frequency - for example "5" is 770 + 1336 Hz. The two tones are always played together and at equal level.',
+  },
+  {
+    q: 'Why are there A, B, C and D keys?',
+    a: 'The Bell System reserved a fourth column for signalling functions that the public keypad never exposed. The military AUTOVON network used A–D for precedence levels (flash, immediate, priority, routine), and they were used for other line functions. Most consumer phones do not have them, but a "5" keypad can transmit them and many test tools and PBXs still recognise the codes.',
+  },
+  {
+    q: 'Will these tones actually dial a phone?',
+    a: 'Only if you hold them up to a real phone handset or play them into a line the way a keypad would. Playing tones from your speakers straight into a phone call is unreliable because of echo cancellation - most phones subtract anything they did not originate. This tool is for generating the exact signal for testing, demos, hearing the tones and producing audio files.',
+  },
+  {
+    q: 'How accurate are the call-progress tones?',
+    a: 'The two frequencies of each tone are exact and come from the standard tone plan. The on/off cadences - 2 s on / 4 s off for US ringback, 0.5 s on / 0.5 s off for busy, and so on - are approximations of the official patterns, which vary between exchanges, countries and network generations. Treat the cadences as representative, not authoritative.',
+  },
+];
+---
+
+<Base
+  title={tool.title}
+  description={tool.meta}
+  tool={tool}
+  keywords={tool.keywords}
+>
+  <!-- ============================ Hero ============================ -->
+  <div class="hero">
+    <div class="hero__text">
+      <p class="label label--accent">Signals &amp; telecom · dual-tone multi-frequency</p>
+      <h1>{tool.title}</h1>
+      <p class="hero__lead">
+        The complete 4×4 telephone keypad with the exact Touch-Tone frequency pairs, hold-to-sound keys, a
+        dialled-number display, timed sequence playback and the standard call-progress tones - dial tone,
+        ringback, busy and SIT. Every tone is summed from the real Bell System frequencies.
+      </p>
+    </div>
+    <div class="hero__aside">
+      <div class="notice notice--info">
+        <span class="notice__icon" aria-hidden="true">i</span>
+        <p class="notice__body">
+          These tones are for testing, learning and demos. Generating them is harmless, but do not use them to
+          place calls or access systems you are not authorised to use. High frequencies at high volume are
+          still loud - mind the header level.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================= Keypad ========================= -->
+  <section class="panel" id="dtmf" aria-labelledby="dtmf-heading">
+    <header class="panel__head">
+      <div class="flex items-center gap-2">
+        <span class="label" id="dtmf-heading">Keypad &amp; signalling</span>
+        <span class="badge">Bell System tone plan</span>
+      </div>
+      <span class="mono freq-readout" data-dtmf="freq">press a key</span>
+    </header>
+
+    <div class="panel__body dtmf-body">
+      <!-- Keypad + number -->
+      <div class="stack">
+        <div class="keypad" role="group" aria-label="Telephone keypad">
+          {
+            DTMF_KEYPAD.map((entry) => (
+              <button
+                class="keypad__key"
+                type="button"
+                data-dtmf="key"
+                data-key={entry.key}
+                aria-pressed="false"
+                aria-label={`Key ${entry.key}, ${DTMF_ROWS[entry.row]} plus ${DTMF_COLS[entry.col]} hertz`}
+              >
+                <span class="keypad__glyph">{entry.key}</span>
+                <span class="keypad__hz mono">{DTMF_ROWS[entry.row]}+{DTMF_COLS[entry.col]}</span>
+              </button>
+            ))
+          }
+        </div>
+
+        <div>
+          <span class="label">Dialled number</span>
+          <div class="dial-display mono" data-dtmf="display"> - </div>
+        </div>
+
+        <div class="transport">
+          <button class="btn btn--primary" type="button" data-dtmf="dial">Dial sequence</button>
+          <button class="btn btn--sm" type="button" data-dtmf="back">⌫ Backspace</button>
+          <button class="btn btn--sm" type="button" data-dtmf="clear">Clear</button>
+          <div class="transport__export">
+            <button class="btn" type="button" data-dtmf="export">Save WAV</button>
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label class="label" for="dtmf-tone">Tone duration (ms)</label>
+            <input id="dtmf-tone" class="input mono" type="number" min="20" max="2000" step="10" value="100" />
+          </div>
+          <div class="field">
+            <label class="label" for="dtmf-gap">Gap between digits (ms)</label>
+            <input id="dtmf-gap" class="input mono" type="number" min="0" max="2000" step="10" value="70" />
+          </div>
+        </div>
+
+        <p class="status mono" data-dtmf="status" role="status" aria-live="polite">
+          Hold a key to hear it, or type on the number row.
+        </p>
+      </div>
+
+      <!-- Telephony -->
+      <div class="stack">
+        <div class="scope scope--spec">
+          <span class="scope__tag">Spectrum · live output</span>
+          <canvas data-scope="spectrum" data-peak="true"></canvas>
+        </div>
+
+        <div>
+          <span class="label" id="dtmf-telephony-label">Telephony tones</span>
+          <div class="tele-grid" role="group" aria-labelledby="dtmf-telephony-label">
+            {
+              TELEPHONY_TONES.map((tone) => (
+                <button class="btn btn--sm tele" type="button" data-dtmf="telephony" data-id={tone.id} aria-pressed="false">
+                  <span class="tele__label">{tone.label}</span>
+                  <span class="tele__detail mono">{tone.detail}</span>
+                </button>
+              ))
+            }
+          </div>
+          <p class="hint">Continuous tones play until Stop. Cadenced tones repeat their on/off pattern until Stop.</p>
+        </div>
+
+        <button class="btn btn--ghost btn--block" type="button" data-dtmf="stopall">
+          Stop all tones
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================= Reference ========================= -->
+  <div class="two-col">
+    <Panel eyebrow="Reference" title="The DTMF frequency matrix">
+      <table class="table-tech">
+        <thead>
+          <tr>
+            <th>Row \ Col</th>
+            {DTMF_COLS.map((hz) => <th class="mono">{hz}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {
+            DTMF_ROWS.map((rowHz, rowIndex) => (
+              <tr>
+                <td class="mono">{rowHz} Hz</td>
+                {
+                  DTMF_COLS.map((_, colIndex) => {
+                    const entry = DTMF_KEYPAD.find((k) => k.row === rowIndex && k.col === colIndex);
+                    return <td class="mono cell-key">{entry?.key}</td>;
+                  })
+                }
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+      <p class="hint">
+        Rows 697 / 770 / 852 / 941 Hz · columns 1209 / 1336 / 1477 / 1633 Hz. Tolerances in the standard are
+        ±1.5% for the frequency and within 2 dB for the balance between the two tones, with the key must be
+        held at least 40 ms for the exchange to register it.
+      </p>
+    </Panel>
+
+    <Panel eyebrow="Reference" title="The extra column">
+      <div class="prose-tech">
+        <p>
+          The 16-key matrix travelled with four rows and four columns, but the consumer keypad only ever
+          printed the first three columns. The fourth column - keys <code>A</code>, <code>B</code>,
+          <code>C</code> and <code>D</code> - existed for network signalling that callers were never given.
+        </p>
+        <ul>
+          <li><strong>A</strong> 697 + 1633 Hz · <strong>B</strong> 770 + 1633 Hz</li>
+          <li><strong>C</strong> 852 + 1633 Hz · <strong>D</strong> 941 + 1633 Hz</li>
+        </ul>
+        <p>
+          The best-known use was on the AUTOVON military network, where A–D marked call precedence: flash
+          override, flash, immediate and priority. The tones also served line-testing and feature codes on
+          some PBXs. Because the coders were already decoding all four columns, the extra keys cost nothing to
+          add and they survive in modern tone plans.
+        </p>
+      </div>
+      <h3 class="mono col-title">Column frequencies</h3>
+      <table class="table-tech">
+        <thead>
+          <tr><th>Group</th><th>Frequencies</th><th>Used by</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="mono">Rows</td><td class="mono">697 · 770 · 852 · 941 Hz</td><td>Keys 1–9, *, 0, #</td></tr>
+          <tr><td class="mono">Cols 1–3</td><td class="mono">1209 · 1336 · 1477 Hz</td><td>Keys 1–9, *, 0, #</td></tr>
+          <tr><td class="mono">Col 4</td><td class="mono">1633 Hz</td><td>Keys A, B, C, D</td></tr>
+        </tbody>
+      </table>
+    </Panel>
+  </div>
+
+  <Panel eyebrow="FAQ" title="Questions people actually ask">
+    <div class="faq faq--wide">
+      {faqs.map((faq) => (
+        <details>
+          <summary>{faq.q}</summary>
+          <p>{faq.a}</p>
+        </details>
+      ))}
+    </div>
+  </Panel>
+
+  <!-- ===================== Related tools ===================== -->
+  <Panel eyebrow="More tools" title="Related generators and tests">
+    <div class="card-grid">
+      {related.map((item) => (
+        <a class="card" href={item.href}>
+          <p class="card__t">{item.title}</p>
+          <p class="card__d">{item.tagline}</p>
+        </a>
+      ))}
+    </div>
+  </Panel>
+
+  <script>
+    import '../scripts/dtmf';
+  </script>
+</Base>
+
+<style>
+  .hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(260px, 1fr);
+    gap: 20px;
+    align-items: start;
+    margin-bottom: 18px;
+  }
+  @media (max-width: 900px) {
+    .hero { grid-template-columns: minmax(0, 1fr); }
+  }
+  .hero h1 { font-size: clamp(1.6rem, 3.2vw, 2.1rem); margin: 6px 0 8px; }
+  .hero__lead { color: var(--color-ink-2); max-width: 68ch; margin: 0; font-size: 14.5px; }
+  .notice__body { margin: 0; }
+
+  .dtmf-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+    gap: 20px;
+  }
+  @media (max-width: 1000px) {
+    .dtmf-body { grid-template-columns: minmax(0, 1fr); }
+  }
+  .stack { display: flex; flex-direction: column; gap: 14px; }
+  .flex { display: flex; }
+
+  .freq-readout { font-size: 11.5px; color: var(--color-ink-3); }
+
+  .keypad {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .keypad__key {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 12px 4px 8px;
+    background: var(--color-panel-2);
+    border: 1px solid var(--color-line-2);
+    border-radius: var(--radius-sm);
+    color: var(--color-ink);
+    cursor: pointer;
+    transition: background 90ms ease, border-color 90ms ease;
+  }
+  .keypad__key:hover { border-color: var(--color-line-3); background: var(--color-panel-3); }
+  .keypad__key[aria-pressed='true'] {
+    background: var(--color-signal);
+    border-color: var(--color-signal);
+    color: #04231b;
+  }
+  .keypad__glyph { font-family: var(--font-mono); font-size: 20px; font-weight: 600; line-height: 1; }
+  .keypad__hz { font-size: 8.5px; color: var(--color-ink-4); }
+  .keypad__key[aria-pressed='true'] .keypad__hz { color: #04231b; }
+
+  .dial-display {
+    margin-top: 6px;
+    min-height: 46px;
+    padding: 9px 12px;
+    background: var(--color-void);
+    border: 1px solid var(--color-line-2);
+    border-radius: var(--radius-sm);
+    font-size: 20px;
+    letter-spacing: 0.14em;
+    color: var(--color-signal);
+    word-break: break-all;
+  }
+
+  .transport { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .transport__export { display: flex; gap: 6px; }
+
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field-row { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+
+  .tele-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 7px;
+    margin-top: 7px;
+  }
+  .tele { flex-direction: column; align-items: flex-start; gap: 2px; min-height: 46px; text-align: left; }
+  .tele__label { font-size: 12px; }
+  .tele__detail { font-size: 9.5px; color: var(--color-ink-4); }
+  .tele[aria-pressed='true'] {
+    --btn-bg: color-mix(in oklab, var(--color-signal) 16%, var(--color-panel-2));
+    --btn-bd: color-mix(in oklab, var(--color-signal) 46%, transparent);
+    --btn-fg: var(--color-signal);
+  }
+  .tele[aria-pressed='true'] .tele__detail { color: var(--color-signal); }
+
+  .status { font-size: 11.5px; color: var(--color-ink-3); margin: 0; min-height: 18px; }
+  .status[data-kind='ok'] { color: var(--color-signal); }
+  .status[data-kind='error'] { color: var(--color-danger); }
+  .status[data-kind='warn'] { color: var(--color-warn); }
+  .status[data-kind='idle'] { color: var(--color-ink-3); }
+
+  .hint { margin: 7px 0 0; font-size: 11.5px; color: var(--color-ink-4); line-height: 1.7; }
+
+  .cell-key { font-size: 15px; color: var(--color-signal); font-weight: 600; }
+
+  .col-title { font-size: 12px; margin: 14px 0 8px; color: var(--color-ink-2); }
+
+  .two-col {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 14px;
+    margin-top: 14px;
+  }
+  @media (max-width: 1000px) {
+    .two-col { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  .faq details { border-bottom: 1px solid var(--color-line); padding: 10px 0; }
+  .faq details:first-of-type { padding-top: 0; }
+  .faq summary {
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 13.5px;
+    list-style: none;
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+  }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary::before { content: "+"; font-family: var(--font-mono); color: var(--color-signal); flex: none; }
+  .faq details[open] summary::before { content: "−"; }
+  .faq details p { margin: 8px 0 0 18px; font-size: 13px; color: var(--color-ink-2); line-height: 1.65; }
+</style>

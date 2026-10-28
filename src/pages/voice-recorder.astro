@@ -1,0 +1,240 @@
+---
+import Base from '../layouts/Base.astro';
+import Panel from '../components/Panel.astro';
+import { TOOLS } from '../data/tools';
+
+const tool = TOOLS.find((t) => t.href === '/voice-recorder')!;
+
+const faqs = [
+  {
+    q: 'Where does my recording go?',
+    a: 'Nowhere. The microphone stream is captured, drawn and encoded entirely inside this page in your browser. There is no upload step and no server to upload to - the site is a static collection of files. When you close the tab, the recording is gone unless you have downloaded it.',
+  },
+  {
+    q: 'Why is the downloaded file a WAV and not a WebM?',
+    a: 'Browsers capture with MediaRecorder, which usually produces a compressed format such as WebM/Opus because it is built for streaming. To give you a WAV, the page decodes that captured audio and re-encodes it as uncompressed 16-bit PCM before downloading. If decoding fails on your browser, it falls back to downloading the original file in its real format rather than pretending it is a WAV.',
+  },
+  {
+    q: 'Why can no one hear me, or my recording is full of echo?',
+    a: 'Two common causes. First, the wrong input device: check the system or browser microphone picker and select the right one. Second, echo: if your speakers are loud, the microphone hears them, and the recording picks up a delayed copy of itself or a feedback howl. Wear headphones when recording, or lower the speaker volume and record in a quiet room.',
+  },
+  {
+    q: 'The page refuses to start recording - why?',
+    a: 'Microphone access requires a secure context (HTTPS or localhost) and your explicit permission. If you denied permission earlier, the browser remembers it; reset it in the site settings. If no microphone is connected, or it is disabled at the OS level, the browser reports that no input device exists.',
+  },
+];
+
+const related = TOOLS.filter((t) => ['/voice-generator', '/pitch-shifter', '/time-stretcher', '/'].includes(t.href) && t.href !== '/voice-recorder');
+---
+
+<Base
+  title={tool.title}
+  description={tool.meta}
+  tool={tool}
+  keywords={tool.keywords}
+>
+  <!-- ============================ Hero ============================ -->
+  <div class="hero">
+    <div class="hero__text">
+      <p class="label label--accent">Voice &amp; files · microphone capture</p>
+      <h1>{tool.title}</h1>
+      <p class="hero__lead">
+        Record from your microphone in the browser, watch the live input waveform as you speak, and keep as many takes
+        as you like. Each take can be played back or downloaded as a 16-bit PCM WAV file. The audio never leaves your
+        device.
+      </p>
+    </div>
+    <div class="hero__aside">
+      <div class="notice notice--info">
+        <span class="notice__icon" aria-hidden="true">i</span>
+        <p class="notice__body">
+          <strong>Recordings are processed entirely in your browser and are never uploaded.</strong> Record in a quiet
+          room, and if your speakers are audible to the microphone you will capture echo or feedback - use headphones.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================= Panel ========================== -->
+  <section class="panel vr" id="voice-recorder" data-vr="root" aria-labelledby="vr-heading">
+    <header class="panel__head">
+      <div class="flex items-center gap-2">
+        <span class="label" id="vr-heading">Recorder</span>
+        <span class="badge" data-vr="state-badge">idle</span>
+      </div>
+      <span class="mono vr__timer" data-vr="timer" aria-live="off">00:00.0</span>
+    </header>
+
+    <div class="panel__body vr__body">
+      <div class="notice notice--danger vr__message" data-vr="message" hidden>
+        <span class="notice__icon" aria-hidden="true">!</span>
+        <p class="notice__body" data-vr="message-body">Microphone unavailable.</p>
+      </div>
+
+      <div class="stack">
+        <div class="scope vr__live">
+          <span class="scope__tag">Input level · live</span>
+          <canvas data-vr="wave" aria-label="Live microphone input waveform"></canvas>
+        </div>
+
+        <div class="transport">
+          <button class="btn btn--primary btn--play" type="button" data-vr="record" aria-pressed="false">
+            <span class="transport__glyph" aria-hidden="true">●</span> Record
+          </button>
+          <button class="btn btn--stop" type="button" data-vr="stop" disabled>
+            <span class="transport__glyph" aria-hidden="true">■</span> Stop
+          </button>
+          <span class="led" data-vr="led" data-on="false" aria-hidden="true"></span>
+        </div>
+
+        <p class="status mono" data-vr="status" role="status" aria-live="polite">Ready. Press record to ask for microphone access.</p>
+
+        <div class="field">
+          <label class="label" for="vr-player">Playback</label>
+          <audio class="vr__player" id="vr-player" data-vr="player" controls preload="metadata">Your browser does not support audio playback.</audio>
+        </div>
+
+        <div class="vr__takes-head">
+          <span class="label">Takes</span>
+          <button class="btn btn--ghost btn--sm" type="button" data-vr="clear">Clear takes</button>
+        </div>
+        <div class="vr__takes" data-vr="takes">
+          <p class="mono vr__empty" data-vr="empty">No takes yet. Recordings appear here.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================= Reference ========================= -->
+  <div class="two-col">
+    <Panel eyebrow="Reference" title="How a browser recording becomes a WAV">
+      <div class="prose-tech">
+        <p>
+          Four steps happen every time you press record and then stop, all of them on your machine.
+        </p>
+        <h3>1 · Permission and capture</h3>
+        <p>
+          <code>getUserMedia({'{ audio: true }'})</code> asks the operating system for the microphone. On success you
+          get a <code>MediaStream</code> - a live pipe of audio samples. The same stream is split: one branch goes to a
+          <code>MediaRecorder</code> to be saved, another to an <code>AnalyserNode</code> so the page can draw the
+          waveform without disturbing the recording.
+        </p>
+        <h3>2 · Encoding on the fly</h3>
+        <p>
+          Browsers almost never hand you raw PCM. The <code>MediaRecorder</code> compresses the stream as it arrives,
+          typically to WebM/Opus, because that format is built for streaming and small files. The result is a Blob you
+          can already play back.
+        </p>
+        <h3>3 · Decoding for export</h3>
+        <p>
+          To produce a WAV, the page reads that Blob with <code>arrayBuffer()</code> and feeds it to
+          <code>decodeAudioData()</code>, which hands back the uncompressed samples as an <code>AudioBuffer</code>.
+        </p>
+        <h3>4 · Encoding the WAV</h3>
+        <p>
+          Those samples are written into a 44-byte WAV header and 16-bit little-endian PCM data, then offered as a
+          download. That is a genuine WAV file any audio editor will open - not the compressed capture under a different
+          name. If decoding fails, the page says so and offers the original file instead.
+        </p>
+      </div>
+    </Panel>
+
+    <Panel eyebrow="FAQ" title="Questions people actually ask">
+      <div class="faq">
+        {
+          faqs.map((faq) => (
+            <details>
+              <summary>{faq.q}</summary>
+              <p>{faq.a}</p>
+            </details>
+          ))
+        }
+      </div>
+    </Panel>
+  </div>
+
+  <!-- ===================== Related tools ===================== -->
+  <Panel eyebrow="More tools" title="Related tools">
+    <div class="card-grid">
+      {
+        related.map((item) => (
+          <a class="card" href={item.href}>
+            <p class="card__t">{item.title}</p>
+            <p class="card__d">{item.tagline}</p>
+          </a>
+        ))
+      }
+    </div>
+  </Panel>
+
+  <script>
+    import '../scripts/voice-recorder';
+  </script>
+</Base>
+
+<style>
+  .hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(260px, 1fr);
+    gap: 20px;
+    align-items: start;
+    margin-bottom: 18px;
+  }
+  @media (max-width: 900px) {
+    .hero { grid-template-columns: minmax(0, 1fr); }
+  }
+  .hero h1 { font-size: clamp(1.6rem, 3.2vw, 2.1rem); margin: 6px 0 8px; }
+  .hero__lead { color: var(--color-ink-2); max-width: 68ch; margin: 0; font-size: 14.5px; }
+  .notice__body { margin: 0; }
+
+  .vr__body { display: flex; flex-direction: column; gap: 14px; }
+  .stack { display: flex; flex-direction: column; gap: 14px; }
+  .vr__timer { font-size: 15px; color: var(--color-ink); }
+  .vr__message { margin: 0; }
+
+  .vr__live { height: 120px; }
+  .vr__live canvas { display: block; width: 100%; height: 100%; }
+
+  .transport { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .transport__glyph { font-size: 10px; }
+  .status { font-size: 11.5px; color: var(--color-ink-3); margin: 0; min-height: 18px; }
+  .status[data-kind='ok'] { color: var(--color-signal); }
+  .status[data-kind='error'] { color: var(--color-danger); }
+  .status[data-kind='warn'] { color: var(--color-warn); }
+
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .vr__player { width: 100%; height: 40px; }
+
+  .vr__takes-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .vr__takes { display: flex; flex-direction: column; gap: 8px; }
+  .vr__empty { font-size: 11.5px; color: var(--color-ink-4); margin: 0; }
+  .vr__take {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 11px;
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-sm);
+    background: var(--color-panel-2);
+  }
+  @media (max-width: 520px) {
+    .vr__take { grid-template-columns: minmax(0, 1fr) auto; }
+    .vr__take .vr__take-dl { grid-column: 1 / -1; }
+  }
+  .vr__take[data-active='true'] { border-color: color-mix(in oklab, var(--color-signal) 46%, transparent); }
+  .vr__take-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; cursor: pointer; background: none; border: 0; padding: 0; text-align: left; color: inherit; }
+  .vr__take-name { font-size: 13px; font-weight: 600; color: var(--color-ink); }
+  .vr__take-meta { font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-3); }
+
+  .two-col { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; margin-top: 14px; }
+  @media (max-width: 1000px) { .two-col { grid-template-columns: minmax(0, 1fr); } }
+
+  .faq details { border-bottom: 1px solid var(--color-line); padding: 10px 0; }
+  .faq details:first-of-type { padding-top: 0; }
+  .faq summary { cursor: pointer; font-weight: 500; font-size: 13.5px; list-style: none; display: flex; gap: 8px; align-items: baseline; }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary::before { content: "+"; font-family: var(--font-mono); color: var(--color-signal); flex: none; }
+  .faq details[open] summary::before { content: "−"; }
+  .faq details p { margin: 8px 0 0 18px; font-size: 13px; color: var(--color-ink-2); line-height: 1.65; }
+</style>

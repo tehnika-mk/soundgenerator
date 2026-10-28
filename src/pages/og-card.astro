@@ -1,0 +1,157 @@
+---
+/**
+ * Social preview card. Not part of the site navigation: it is rendered at
+ * 1200x630 by tools/make_og.mjs and screenshotted into public/og.png.
+ */
+import { SITE } from '../data/tools';
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Social card</title>
+  </head>
+  <body>
+    <div class="card">
+      <div class="grid" aria-hidden="true"></div>
+
+      <header class="top">
+        <div class="brand">
+          <svg width="34" height="24" viewBox="0 0 24 14" fill="none" aria-hidden="true">
+            <path d="M0.5,7 C3.5,0.5 8.5,0.5 11.5,7 C14.5,13.5 19.5,13.5 23.5,7" stroke="#12d8a0" stroke-width="1.8" stroke-linecap="round" />
+          </svg>
+          <span>SOUNDGENERATOR.APP</span>
+        </div>
+        <span class="tag">Web Audio · no uploads</span>
+      </header>
+
+      <main>
+        <h1>Precision tone and test-signal generators</h1>
+        <p class="lead">
+          Sine, square, sawtooth and triangle tones from 1 Hz to 20 kHz, frequency sweeps, white, pink and brown noise,
+          binaural beats, tuning tones, metronome, DTMF and hearing tests. Every signal is generated in your browser.
+        </p>
+      </main>
+
+      <svg class="wave" viewBox="0 0 1200 120" preserveAspectRatio="none" aria-hidden="true">
+        <path
+          d="M0,60 C30,8 60,8 90,60 C120,112 150,112 180,60 C210,8 240,8 270,60 C300,112 330,112 360,60 C390,8 420,8 450,60 C480,112 510,112 540,60 C570,8 600,8 630,60 C660,112 690,112 720,60 C750,8 780,8 810,60 C840,112 870,112 900,60 C930,8 960,8 990,60 C1020,112 1050,112 1080,60 C1110,8 1140,8 1170,60 L1200,60"
+          fill="none"
+          stroke="#12d8a0"
+          stroke-width="2"
+          opacity="0.55"
+        />
+      </svg>
+
+      <footer class="foot">
+        <span class="mono">18 tools</span>
+        <span class="dot">·</span>
+        <span class="mono">1 Hz to 20 kHz</span>
+        <span class="dot">·</span>
+        <span class="mono">16-bit WAV export</span>
+        <span class="dot">·</span>
+        <span class="mono">{SITE.domain}</span>
+      </footer>
+    </div>
+
+    <style>
+      * { box-sizing: border-box; }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 1200px;
+        height: 630px;
+        overflow: hidden;
+        background: #08090b;
+        color: #e8ebef;
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      }
+      .card {
+        position: relative;
+        width: 1200px;
+        height: 630px;
+        padding: 56px 64px 0;
+        display: flex;
+        flex-direction: column;
+      }
+      .grid {
+        position: absolute;
+        inset: 0;
+        background-image:
+          linear-gradient(to right, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+          linear-gradient(to bottom, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+        background-size: 40px 40px;
+        mask-image: radial-gradient(ellipse 90% 80% at 20% 0%, #000 20%, transparent 80%);
+      }
+      .top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        position: relative;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+        font-size: 20px;
+        letter-spacing: 0.1em;
+        color: #e8ebef;
+      }
+      .tag {
+        font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+        font-size: 15px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: #12d8a0;
+        border: 1px solid rgba(18, 216, 160, 0.45);
+        background: rgba(18, 216, 160, 0.08);
+        border-radius: 999px;
+        padding: 7px 16px;
+      }
+      main {
+        position: relative;
+        margin-top: 74px;
+        max-width: 1010px;
+      }
+      h1 {
+        margin: 0;
+        font-size: 62px;
+        line-height: 1.06;
+        letter-spacing: -0.02em;
+        font-weight: 600;
+      }
+      .lead {
+        margin: 26px 0 0;
+        font-size: 24px;
+        line-height: 1.5;
+        color: #a8b0ba;
+        max-width: 940px;
+      }
+      .wave {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 86px;
+        width: 1200px;
+        height: 120px;
+      }
+      .foot {
+        position: absolute;
+        left: 64px;
+        right: 64px;
+        bottom: 44px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 17px;
+        color: #6f7883;
+      }
+      .foot .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+      .dot { color: #3a424c; }
+    </style>
+  </body>
+</html>

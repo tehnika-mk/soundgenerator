@@ -1,0 +1,17 @@
+{
+  "name": "Sound Generator",
+  "short_name": "SoundGen",
+  "description": "Precision tone, sweep and test-signal generators that run in your browser.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#08090b",
+  "theme_color": "#08090b",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
