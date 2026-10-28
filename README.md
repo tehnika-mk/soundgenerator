@@ -6,6 +6,8 @@ framework, no server-side audio, no ads, no behavioural tracking.
 
 **Live target:** https://soundgenerator.app
 
+![Sound Generator home page: tone generator with oscilloscope, spectrum and frequency readouts](docs/screenshot.png)
+
 ---
 
 ## What's in it
